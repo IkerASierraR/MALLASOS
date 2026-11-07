@@ -11,11 +11,13 @@ import pe.upt.mallasos.data.db.MallaDatabase
 import pe.upt.mallasos.domain.SosRepository
 import pe.upt.mallasos.dtn.MessageExchange
 import pe.upt.mallasos.dtn.TtlSweeper
+import pe.upt.mallasos.log.CsvExporter
 import pe.upt.mallasos.log.EventLogger
 import pe.upt.mallasos.p2p.ContactScheduler
 import pe.upt.mallasos.p2p.PeerContact
 import pe.upt.mallasos.p2p.SessionRunner
 import pe.upt.mallasos.p2p.WifiDirectManager
+import pe.upt.mallasos.service.TrafficGenerator
 
 /** Inyección de dependencias manual (`plan.md` §1). */
 class AppContainer(context: Context) {
@@ -37,6 +39,9 @@ class AppContainer(context: Context) {
             logger,
         ),
     )
+
+    val csvExporter = CsvExporter(context, database.events())
+    val traffic = TrafficGenerator(settings.testConfig, sosRepository::createNormal)
 
     /** Las lápidas duran el tiempo de vida más una hora de margen (`plan.md` §5). */
     val sweeper = TtlSweeper(database.messages(), logger, {

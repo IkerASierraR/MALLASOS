@@ -1,6 +1,7 @@
 package pe.upt.mallasos.data.datastore
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -71,9 +72,11 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    val testConfig: Flow<TestConfig> = context.dataStore.data.map { prefs ->
+    val testConfig: Flow<TestConfig> = context.dataStore.data.map(::readConfig)
+
+    private fun readConfig(prefs: Preferences): TestConfig {
         val defaults = TestConfig()
-        TestConfig(
+        return TestConfig(
             dtnMode = enumOr(prefs[Keys.DTN_MODE], defaults.dtnMode),
             queueMode = enumOr(prefs[Keys.QUEUE_MODE], defaults.queueMode),
             goIntent = prefs[Keys.GO_INTENT] ?: defaults.goIntent,
@@ -84,6 +87,26 @@ class SettingsStore(private val context: Context) {
             ttlHours = prefs[Keys.TTL_HOURS] ?: defaults.ttlHours,
             hops = prefs[Keys.HOPS] ?: defaults.hops,
         )
+    }
+
+    /** Los cambios de la configuración oculta se aplican al instante (`design.md` §4.8). */
+    suspend fun updateTestConfig(change: (TestConfig) -> TestConfig) {
+        context.dataStore.edit { prefs ->
+            val config = change(readConfig(prefs))
+            prefs[Keys.DTN_MODE] = config.dtnMode.name
+            prefs[Keys.QUEUE_MODE] = config.queueMode.name
+            prefs[Keys.GO_INTENT] = config.goIntent
+            prefs[Keys.TRAFFIC_ENABLED] = config.trafficEnabled
+            prefs[Keys.TRAFFIC_EVERY] = config.trafficEverySeconds
+            prefs[Keys.TRAFFIC_SIZE] = config.trafficSizeBytes
+            prefs[Keys.RUN_LABEL] = config.runLabel
+            prefs[Keys.TTL_HOURS] = config.ttlHours
+            prefs[Keys.HOPS] = config.hops
+        }
+    }
+
+    suspend fun setMode(mode: NodeMode) {
+        context.dataStore.edit { prefs -> prefs[Keys.MODE] = mode.name }
     }
 
     /** Genera el ID una sola vez, al instalar la app. */

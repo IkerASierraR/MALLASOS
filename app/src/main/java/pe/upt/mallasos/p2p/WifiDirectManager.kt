@@ -136,6 +136,17 @@ class WifiDirectManager(
         }
     }
 
+    /** "Buscar ahora" de la pantalla Vecinos: un fallo solo significa esperar al ciclo siguiente. */
+    fun searchNow() {
+        scope.launch {
+            try {
+                discover()
+            } catch (_: P2pActionException) {
+                // El Wi-Fi está apagado o el sistema está ocupado: la pantalla ya lo muestra.
+            }
+        }
+    }
+
     /**
      * Pide conectar con [peer] (T2). Terminar sin error solo significa que el sistema aceptó la
      * orden: el grupo aparece después en `state` (T3).

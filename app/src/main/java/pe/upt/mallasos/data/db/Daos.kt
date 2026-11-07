@@ -79,6 +79,12 @@ abstract class MessageDao : MessageStore, QueueStore {
         return deleteCarried(uid) > 0
     }
 
+    @Query("UPDATE messages SET attended = :attended WHERE uid = :uid")
+    abstract suspend fun setAttended(uid: String, attended: Boolean)
+
+    @Query("SELECT * FROM messages WHERE uid = :uid")
+    abstract fun observeMessage(uid: String): Flow<MessageEntity?>
+
     @Query("SELECT * FROM messages WHERE type IN (1, 2) ORDER BY enqueuedAt DESC")
     abstract fun observeVisible(): Flow<List<MessageEntity>>
 
@@ -102,6 +108,23 @@ interface EventDao {
     @Insert
     suspend fun insert(event: EventEntity)
 
-    @Query("SELECT * FROM events WHERE uid = :uid ORDER BY tsMs")
+    @Query("SELECT * FROM events WHERE uid = :uid ORDER BY tsMs, id")
     fun observeForMessage(uid: String): Flow<List<EventEntity>>
+
+    @Query("SELECT * FROM events ORDER BY id")
+    suspend fun all(): List<EventEntity>
+
+    @Query("SELECT COUNT(*) FROM events")
+    fun observeCount(): Flow<Int>
+
+    @Query("DELETE FROM events")
+    suspend fun deleteAll()
+
+    /** Eventos T0 a T3 más recientes, del último al primero, para la pantalla Vecinos. */
+    @Query(
+        "SELECT * FROM events WHERE event IN " +
+            "('DISCOVERY_START', 'PEER_FOUND', 'CONNECT_REQUEST', 'GROUP_FORMED', 'SESSION_END') " +
+            "ORDER BY id DESC LIMIT 50",
+    )
+    fun observeLinkEvents(): Flow<List<EventEntity>>
 }

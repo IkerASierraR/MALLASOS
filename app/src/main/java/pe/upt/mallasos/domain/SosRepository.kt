@@ -1,6 +1,7 @@
 package pe.upt.mallasos.domain
 
 import kotlinx.coroutines.flow.first
+import pe.upt.mallasos.codec.ANY_POST
 import pe.upt.mallasos.codec.MessageType
 import pe.upt.mallasos.codec.PayloadCodec
 import pe.upt.mallasos.codec.Priority
@@ -56,5 +57,33 @@ class SosRepository(
         logger.log(Events.CREATED, uid = uid, hopsLeft = config.hops)
         logger.log(Events.ENQUEUED, uid = uid, hopsLeft = config.hops)
         return uid
+    }
+
+    /** Tráfico de prueba: los mensajes normales no son un chat (`progress.md`, decisiones). */
+    suspend fun createNormal(sizeBytes: Int) {
+        val identity = settings.requireIdentity()
+        val config = settings.testConfig.first()
+        val now = System.currentTimeMillis()
+        val seq = settings.takeSequence()
+        val uid = Uid(identity.nodeId, seq).hex
+        messages.insertNew(
+            MessageEntity(
+                uid = uid,
+                type = MessageType.NORMAL.code,
+                priority = Priority.NORMAL,
+                originId = identity.nodeId,
+                destId = ANY_POST,
+                seq = seq,
+                createdAt = now,
+                ttlHours = config.ttlHours,
+                hopsLeft = config.hops,
+                payload = ByteArray(sizeBytes),
+                state = MessageState.PENDING,
+                isOwn = true,
+                enqueuedAt = now,
+            ),
+        )
+        logger.log(Events.CREATED, uid = uid, hopsLeft = config.hops)
+        logger.log(Events.ENQUEUED, uid = uid, hopsLeft = config.hops)
     }
 }
