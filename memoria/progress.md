@@ -27,7 +27,7 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | Fase | Tareas | Estado | Notas |
 | --- | --- | --- | --- |
 | 0. Preparación | T0.1 – T0.6 | 🔄 | T0.1 y T0.2 hechas; faltan T0.3 a T0.6 |
-| 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.6 y T1.8 parciales |
+| 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.4 y T1.5 escritas, sin probar en teléfonos; T1.6 y T1.8 parciales |
 | 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 hecha; T2.10 parcial (solo Cola) |
 | 3. Ensayos | T3.1 – T3.7 | ⬜ | E5 puede empezar ya (fuera de la app) |
 | 4. Cierre | T4.1 – T4.6 | ⬜ | Entrega: 18 dic |
@@ -127,6 +127,14 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 - Pendiente o siguiente paso:
 - Checkpoint afectado:
 ```
+
+### 2026-11-07 · T1.4, T1.5 · Iker (+ IA: Claude Code)
+
+- Hecho: `WifiDirectManager` (búsqueda, conexión con intent de Group Owner, grupo y desconexión; eventos T0 a T3, `SESSION_END` y `LINK_LOST`) y `SessionRunner` (servidor y cliente TCP en 8988, framing y HELLO validado). Aún nada los invoca: el ciclo lo arrancarán `MallaService` (T1.7) y `ContactScheduler` (T2.7).
+- Archivos tocados: `app/.../p2p/`, `log/EventLogger.kt`, `AndroidManifest.xml`, iconos con XML mal formado.
+- Pruebas: 41 JUnit en verde; `SessionRunner` con sockets reales en localhost; lint sin errores. `WifiDirectManager` no se ejecutó: el emulador no tiene Wi-Fi Direct y hacen falta dos teléfonos.
+- Pendiente o siguiente paso: T1.7 y T2.7 para probarlo en dos teléfonos y cerrar M1.
+- Checkpoint afectado: CP1, sin completar.
 
 ### 2026-11-07 · T0.1, T0.2, T1.1–T1.3, T1.10, T1.11, T2.1 · Iker (+ IA: Claude Code)
 
