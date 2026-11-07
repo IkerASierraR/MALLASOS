@@ -27,8 +27,8 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | Fase | Tareas | Estado | Notas |
 | --- | --- | --- | --- |
 | 0. Preparación | T0.1 – T0.6 | 🔄 | T0.1 y T0.2 hechas; faltan T0.3 a T0.6 |
-| 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.4 y T1.5 escritas, sin probar en teléfonos; T1.6 y T1.8 parciales |
-| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 hecha; T2.10 parcial (solo Cola) |
+| 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.4, T1.5 y T1.7 escritas, sin probar en teléfonos; T1.6 y T1.8 parciales |
+| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 hecha; T2.7 escrita, sin probar en teléfonos; T2.10 parcial (solo Cola) |
 | 3. Ensayos | T3.1 – T3.7 | ⬜ | E5 puede empezar ya (fuera de la app) |
 | 4. Cierre | T4.1 – T4.6 | ⬜ | Entrega: 18 dic |
 
@@ -107,6 +107,8 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | 7 nov | `compileSdk 37` con `targetSdk 35` | Compose BOM 2026.09.00 exige compilar con 37 |
 | 7 nov | `memoria/` guarda los 5 .md; `docs/design/` guarda las capturas de Stitch | Mantener la carpeta de trabajo del equipo |
 | 7 nov | Del diseño de Stitch se omiten LoRa, dBm y Ed25519, y el rojo es `#C62828` | Quedan fuera del MVP o contradicen `design.md` |
+| 7 nov | `MallaService` retiene un `PARTIAL_WAKE_LOCK` mientras está activo (permiso `WAKE_LOCK`, no listado en `plan.md`) | Criterio 7 de `spec.md`: el intercambio debe seguir con la pantalla apagada |
+| 7 nov | Los fallos de sesión se registran como `LINK_LOST` con `extra=session:<causa>` | No hay evento propio y el CSV no admite nombres nuevos sin decisión |
 | — | D1: método de corte para E2 | **Pendiente** (antes del 30 nov) |
 
 ## Bloqueos
@@ -127,6 +129,15 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 - Pendiente o siguiente paso:
 - Checkpoint afectado:
 ```
+
+### 2026-11-07 · T1.7, T2.7 · Iker (+ IA: Claude Code)
+
+- Hecho: `ContactScheduler` (ciclo de 15 s, enfriamiento de 60 s, sesión de 30 s, atiende grupos ajenos), `PeerContact` (HELLO y registro en `known_nodes`), `MallaService`, `BootReceiver` y estado real de la red en Inicio. Corregidos el texto negro en modo oscuro y el receptor de Wi-Fi Direct, que en API < 33 perdía el estado inicial.
+- Archivos tocados: `app/.../p2p/`, `service/`, `ui/`, `AppContainer.kt`, `MainActivity.kt`, `AndroidManifest.xml`.
+- Pruebas: 55 JUnit; en emulador API 30, servicio en primer plano con notificación, wake lock, arranque tras reiniciar y `DISCOVERY_START` cada 15 s. Sin teléfonos reales: no hay búsqueda ni conexión reales, ni pruebas en API 34 o superior.
+- Pendiente o siguiente paso: T1.12 requiere pasar mensajes en la sesión (T2.8). Falta el botón de permisos en API 33+ de `NEARBY_WIFI_DEVICES` probado en un teléfono.
+- Riesgo: sin filtro por servicio, el planificador intenta conectar con cualquier dispositivo Wi-Fi Direct cercano (impresoras, televisores). El HELLO falla y entra en enfriamiento, pero puede mostrar diálogos en ese equipo.
+- Checkpoint afectado: CP1, sin completar.
 
 ### 2026-11-07 · T1.4, T1.5 · Iker (+ IA: Claude Code)
 
