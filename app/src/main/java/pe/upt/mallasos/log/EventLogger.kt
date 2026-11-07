@@ -9,6 +9,12 @@ import pe.upt.mallasos.data.db.EventEntity
 object Events {
     const val CREATED = "CREATED"
     const val ENQUEUED = "ENQUEUED"
+    const val DISCOVERY_START = "DISCOVERY_START"
+    const val PEER_FOUND = "PEER_FOUND"
+    const val CONNECT_REQUEST = "CONNECT_REQUEST"
+    const val GROUP_FORMED = "GROUP_FORMED"
+    const val SESSION_END = "SESSION_END"
+    const val LINK_LOST = "LINK_LOST"
 }
 
 /** Registra los eventos que luego se exportan a CSV (R10). */
