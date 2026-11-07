@@ -72,7 +72,7 @@ app/src/main/java/pe/upt/mallasos/
    3. Por cada mensaje recibido se devuelve un `ACK_HOP`.
    4. Si el receptor es el destinatario final, genera además un `ACK_FINAL`, que entra a su propia cola con la máxima prioridad y se envía en esa misma sesión, antes que el `ACK_HOP`.
    5. Al vaciar su cola, y tras recibir sus `ACK_HOP`, cada lado envía un `SUMMARY` sin contenido.
-6. **Cierre.** Cuando ambos lados han enviado y recibido su `SUMMARY`, o tras un tiempo máximo de 30 s, se llama a `removeGroup()` y se vuelve a descubrir.
+6. **Cierre.** Cuando ambos lados han enviado y recibido su `SUMMARY`, cada uno escribe lo pendiente, hace medio cierre TCP y lee hasta el fin de datos del vecino. Entonces, o tras un tiempo máximo de 30 s, se llama a `removeGroup()` y se vuelve a descubrir.
 
 ### Reintentos en modo DTN propuesto
 
