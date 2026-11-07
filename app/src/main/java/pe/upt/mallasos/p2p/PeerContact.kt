@@ -41,12 +41,17 @@ class PeerContact(
 
     private suspend fun onSession(local: LocalNode, session: PeerSession) {
         val remote = session.remote
+        val now = System.currentTimeMillis()
+        // Incluye la demora del HELLO; basta para corregir relojes en el análisis (`plan.md` §6).
+        val clockOffsetMs = remote.clockMs - now
+        logger.log(Events.CLOCK_OFFSET, peerId = remote.nodeId, extra = clockOffsetMs.toString())
         knownNodes.upsert(
             KnownNodeEntity(
                 nodeId = remote.nodeId,
                 alias = remote.alias,
                 isPuesto = remote.mode == NodeMode.PUESTO,
-                lastSeenAt = System.currentTimeMillis(),
+                lastSeenAt = now,
+                clockOffsetMs = clockOffsetMs,
             ),
         )
         val config = settings.testConfig.first()
