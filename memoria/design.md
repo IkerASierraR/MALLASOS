@@ -34,7 +34,7 @@
 
 ### Tipografía
 
-Roboto, la del sistema, sin fuentes descargadas:
+Jost, empaquetada en el APK (licencia OFL), sin fuentes remotas:
 
 | Uso | Tamaño |
 | --- | --- |
