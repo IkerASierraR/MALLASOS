@@ -1,0 +1,45 @@
+MALLA-SOS: como continuar en otra maquina
+Ultima sesion: 7 nov 2026
+
+1. PREPARAR
+   git clone https://github.com/IkerASierraR/MALLASOS.git
+   cd MALLASOS
+   git checkout feat/wifi-direct
+
+   Usar siempre feat/wifi-direct: contiene todo el trabajo. main solo tiene la
+   estructura inicial y feat/base-app es una etapa anterior. Nada esta fusionado.
+
+   Abrir en Android Studio, que crea local.properties con la ruta del SDK.
+   Requiere los SDK 35 y 37 y el JDK de Android Studio.
+   Configurar git user.name y user.email antes de hacer commits.
+
+2. COMPROBAR
+   ./gradlew :app:assembleDebug :app:testDebugUnitTest
+   Resultado esperado: BUILD SUCCESSFUL y 55 pruebas en verde.
+
+3. SI CONTINUAS CON CLAUDE
+   Pidele leer memoria/spec.md, plan.md, tasks.md, progress.md y design.md.
+   Reglas que no estan en esos archivos o conviene repetir:
+   - Commits frecuentes, sin Co-Authored-By ni atribucion a Claude.
+   - Tipografia Jost, empaquetada en el APK.
+   - Commits en feat/wifi-direct; no fusionar a main sin que se pida.
+
+4. ESTADO ACTUAL
+   Hecho: tema Jost, Bienvenida, Inicio, Crear SOS, Mis mensajes, codec, Room,
+   DataStore, Wi-Fi Direct, sesion TCP con HELLO, ciclo de contactos y servicio.
+   Aun NO se transmiten mensajes: dos telefonos solo se saludan con HELLO.
+
+5. SIGUIENTE PASO
+   T2.8: pasar la cola al vecino dentro de la sesion (p2p/PeerContact.kt) y
+   descontar saltos. Luego, con T2.2 y T2.4, cerrar el hito M1 (T1.12).
+
+6. PENDIENTES
+   - Probar en dos telefonos reales: Wi-Fi Direct nunca se ha ejecutado en uno.
+   - Probar en API 26 y en API 34 o superior.
+   - T0.5: Cristhian debe confirmar la cabecera de 19 bytes.
+   - Riesgo: el ciclo intenta conectar con cualquier dispositivo Wi-Fi Direct
+     cercano (impresoras, televisores). No hay filtro por servicio.
+   - Faltan las pantallas Detalle del SOS, Panel del Puesto, Vecinos y
+     Configuracion oculta.
+
+Detalle completo: memoria/progress.md
