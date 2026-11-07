@@ -15,7 +15,7 @@ Ultima sesion: 7 nov 2026
 
 2. COMPROBAR
    ./gradlew :app:assembleDebug :app:testDebugUnitTest
-   Resultado esperado: BUILD SUCCESSFUL y 115 pruebas en verde.
+   Resultado esperado: BUILD SUCCESSFUL y 120 pruebas en verde.
    Python: python -m unittest dentro de lora-sim/ y de analisis/.
 
 3. SI CONTINUAS CON CLAUDE
@@ -35,8 +35,11 @@ Ultima sesion: 7 nov 2026
    Nunca se han conectado dos telefonos reales por Wi-Fi Direct.
 
 5. SIGUIENTE PASO
-   Instalar en dos telefonos y cerrar el hito M1 (T1.12). Lo unico pendiente en
-   la app es T2.15, que espera la decision D1 del equipo.
+   Instalar en dos telefonos y cerrar el hito M1 (T1.12). El equipo debe confirmar
+   D1 (corte tras N bytes, ya implementado y apagado por defecto).
+   Firma: la clave esta en ~/.android/mallasos-release.jks de la PC de Iker y sus
+   datos en keystore.properties, que no va al repositorio. Sin ese archivo el APK
+   release sale sin firmar. Hay que guardar una copia de ambos.
 
 6. PENDIENTES
    - Probar en dos telefonos reales: Wi-Fi Direct nunca se ha ejecutado en uno.

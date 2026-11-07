@@ -28,7 +28,7 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | --- | --- | --- | --- |
 | 0. Preparación | T0.1 – T0.6 | 🔄 | T0.1 y T0.2 hechas; faltan T0.3 a T0.6 |
 | 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.4, T1.5 y T1.7 escritas, sin dos teléfonos reales; falta T1.12 (M1) |
-| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 a T2.14 escritas y probadas en emulador con un vecino simulado, sin dos teléfonos reales; T2.15 espera D1; falta T2.16 (M2) |
+| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 a T2.15 escritas y probadas en emulador con un vecino simulado, sin dos teléfonos reales; D1 por confirmar; falta T2.16 (M2) |
 | 3. Ensayos | T3.1 – T3.7 | 🔄 | T3.6 (herramienta de E5) y T3.7 escritas con pruebas; faltan los parámetros del artículo y todos los ensayos de campo |
 | 4. Cierre | T4.1 – T4.6 | ⬜ | Entrega: 18 dic |
 
@@ -123,7 +123,10 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | 7 nov | El Panel muestra saltos restantes, no recorridos | El teléfono no conoce los saltos iniciales del origen; `design.md` §4.5 pedía recorridos |
 | 7 nov | En API 26 a 28 el CSV solo se comparte, sin copia en Descargas | Escribir allí exigiría un permiso de almacenamiento más |
 | 7 nov | `DemoReceiver`, solo en debug, simula un vecino por TCP local | Permite probar `MessageDao` y las pantallas sin Wi-Fi Direct ni dependencias nuevas |
-| — | D1: método de corte para E2 | **Pendiente** (antes del 30 nov). Sin implementar: lo decide el equipo |
+| 7 nov | D1 **por confirmar con el equipo:** se implementó la opción recomendada, "Cortar tras N bytes", apagada por defecto. Cuenta bytes de mensajes tras el HELLO y actúa en un solo contacto | Iker pidió terminar la app. Es de un solo uso para que la corrida mida el contacto siguiente |
+| 7 nov | En modo básico un mensaje ya enviado no vuelve a salir, salvo el ACK final | "No reintenta" (`plan.md` §3). Si saliera en cada contacto, H1 no distinguiría ambos modos; a cambio, en este modo cada copia se reenvía a un solo vecino |
+| 7 nov | La espera de formación del grupo sube de 20 a 30 s | Algunos teléfonos piden aceptar la invitación a mano |
+| 7 nov | La clave de firma vive fuera del repositorio (`~/.android/mallasos-release.jks`) y `keystore.properties` está ignorado | Una clave en el repositorio permitiría falsificar actualizaciones. Si se pierde, los teléfonos deben desinstalar para actualizar |
 
 ## Bloqueos
 
@@ -143,6 +146,14 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 - Pendiente o siguiente paso:
 - Checkpoint afectado:
 ```
+
+### 2026-11-07 · T2.15, APK de prueba · Iker (+ IA: Claude Code)
+
+- Hecho: corte de enlace, modo básico sin repetir envíos, prueba A→B→C→D y APK de release firmado para instalar en teléfonos.
+- Pruebas: 120 JUnit en verde, incluida la diferencia de H1 tras un corte. APK firmado instalado desde cero en emuladores API 26 y 37, con los diálogos reales de permisos y batería, hasta red activa. En debug se probaron también Deshacer y Borrar registro.
+- Sin probar: dos teléfonos reales, Buscar ahora con vecinos, aviso de SOS nuevo con vibración y fuente grande (escala 1.3).
+- Pendiente o siguiente paso: instalar en dos teléfonos (M1). Revisar con el equipo D1 y el `SUMMARY` vacío.
+- Checkpoint afectado: CP3, parcial.
 
 ### 2026-11-07 · T2.10 a T2.14, T3.6, T3.7 · Iker (+ IA: Claude Code)
 

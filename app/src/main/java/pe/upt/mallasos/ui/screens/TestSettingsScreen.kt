@@ -181,7 +181,7 @@ fun TestSettingsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Text("$eventCount eventos", style = TechnicalText)
+                    Text(if (eventCount == 1) "1 evento" else "$eventCount eventos", style = TechnicalText)
                     PrimaryButton(
                         "Exportar CSV",
                         onClick = { scope.launch { announce(onExport()) } },
