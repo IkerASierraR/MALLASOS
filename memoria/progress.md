@@ -22,27 +22,65 @@ Antes de escribir código:
 
 ## Estado por tarea
 
-Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
+Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada por teléfonos o datos de campo
 
-| Fase | Tareas | Estado | Notas |
-| --- | --- | --- | --- |
-| 0. Preparación | T0.1 – T0.6 | 🔄 | T0.1 y T0.2 hechas; faltan T0.3 a T0.6 |
-| 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.4, T1.5 y T1.7 escritas, sin dos teléfonos reales; falta T1.12 (M1) |
-| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 a T2.15 escritas y probadas en emulador con un vecino simulado, sin dos teléfonos reales; D1 por confirmar; falta T2.16 (M2) |
-| 3. Ensayos | T3.1 – T3.7 | 🔄 | T3.6 (herramienta de E5) y T3.7 escritas con pruebas; faltan los parámetros del artículo y todos los ensayos de campo |
-| 4. Cierre | T4.1 – T4.6 | ⬜ | Entrega: 18 dic |
+✅ significa demostrado con pruebas. 21 de 47 tareas lo están. Una tarea escrita que aún no se ha ejecutado queda en 🔄.
 
-### Detalle de las tareas en curso
-
-| ID | Resp. | Estado | Rama o PR | Última nota |
-| --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| ID | Estado | Evidencia o motivo |
+| --- | --- | --- |
+| T0.1 | ✅ | Repositorio creado |
+| T0.2 | ✅ | Proyecto compila y abre en emuladores API 26 y 37 |
+| T0.3 | 🔄 | Propuesta en `docs/convenciones.md`; falta acuerdo del equipo |
+| T0.4 | ⬜ | Lo completa cada integrante |
+| T0.5 | ⬜ | Lo confirma Cristhian |
+| T0.6 | ⬜ | Lo confirma el docente |
+| T1.1 | 🔄 | Código y pruebas listos; espera T0.5 |
+| T1.2 | ✅ | Room ejecutado en emulador |
+| T1.3 | ✅ | Probado en emulador |
+| T1.4 | 🔄 | Búsqueda real en API 37; conexión sin probar |
+| T1.5 | ✅ | TCP real en localhost, también en Android |
+| T1.6 | 🔄 | Eventos de mensaje y T0 reales; T1 a T3 sin probar |
+| T1.7 | ✅ | Notificación y arranque tras reiniciar probados; pantalla apagada se verifica en M1 |
+| T1.8 | ✅ | Diálogos reales en API 26 y 37; franja sin permisos en Inicio |
+| T1.9 | 🔄 | 4 pantallas en Stitch; las 8 de la app en `docs/design/app/` |
+| T1.10 | ✅ | Contraste AA medido en todos los tokens |
+| T1.11 | ✅ | Probado en emulador |
+| T1.12 | ⛔ | **M1:** necesita dos teléfonos |
+| T2.1 | ✅ | JUnit y emulador |
+| T2.2 | ✅ | JUnit con TCP real |
+| T2.3 | ✅ | JUnit con TCP real |
+| T2.4 | ✅ | JUnit y Room en emulador |
+| T2.5 | ✅ | JUnit y Room en emulador |
+| T2.6 | ✅ | JUnit; el borrado de filas no se ha visto en un dispositivo |
+| T2.7 | 🔄 | JUnit; sin grupos reales |
+| T2.8 | ✅ | JUnit y emulador; A→B→C→D solo en JUnit |
+| T2.9 | 🔄 | Escrita en `PeerContact`, que aún no se ha ejecutado |
+| T2.10 | ✅ | Cola, Detalle y Panel probados en emulador |
+| T2.11 | 🔄 | Pantalla probada sin vecinos; faltan datos reales |
+| T2.12 | ✅ | Probada en emulador |
+| T2.13 | ✅ | JUnit y emulador |
+| T2.14 | ✅ | Probada en API 26 (compartir) y 37 (Descargas) |
+| T2.15 | 🔄 | Implementada y probada; D1 falta confirmar |
+| T2.16 | ⛔ | **M2:** necesita tres teléfonos |
+| T3.1 | ⛔ | Necesita teléfonos |
+| T3.2 | ⛔ | E1: necesita teléfonos |
+| T3.3 | ⛔ | E2: necesita teléfonos |
+| T3.4 | ⛔ | E3: necesita teléfonos |
+| T3.5 | ⛔ | E4: necesita teléfonos |
+| T3.6 | 🔄 | Herramienta y `lora-sim/resultados.md`; falta fijar el escenario |
+| T3.7 | ✅ | Scripts probados con datos sintéticos |
+| T4.1 | 🔄 | Firma lista; la etiqueta `v1.0` espera a M2 |
+| T4.2 | ⛔ | Necesita datos de los ensayos |
+| T4.3 | ⛔ | Necesita datos de los ensayos |
+| T4.4 | ⬜ | Lo escribe cada integrante |
+| T4.5 | 🔄 | Borrador en `docs/trabajo-futuro.md` |
+| T4.6 | ⬜ | 18 dic |
 
 ## Checkpoints
 
 ### CP0: proyecto listo (meta: 9 nov)
 
-- [ ] Repositorio creado con `/app`, `/lora-sim` y `/docs`.
+- [x] Repositorio creado con `/app`, `/lora-sim` y `/docs`.
 - [ ] El proyecto compila y abre en un teléfono con API 26.
 - [ ] Cabecera de 19 bytes confirmada (T0.5).
 - [ ] Inventario de teléfonos completo.
@@ -132,7 +170,7 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 
 | Fecha | Tarea | Bloqueo | Quién lo resuelve |
 | --- | --- | --- | --- |
-| — | — | — | — |
+| 7 nov | T1.12, T2.16, T3.1 a T3.5 | Hacen falta teléfonos reales: sin ellos no hay M1, M2 ni datos de ensayos, y T4.2 y T4.3 dependen de esos datos | Equipo |
 
 ## Registro de sesiones
 
@@ -146,6 +184,15 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 - Pendiente o siguiente paso:
 - Checkpoint afectado:
 ```
+
+### 2026-11-07 · Auditoría contra la memoria · Iker (+ IA: Claude Code)
+
+- Hecho: revisión de `design.md` §7 en las pantallas, contraste AA medido (36 combinaciones), tema oscuro y fuente 1.3 en emulador API 37. Estado por tarea detallado arriba.
+- Corregido: el selector de intent marcaba siempre Auto; el aviso de SOS nuevo quedaba oculto; faltaba la franja sin permisos en Inicio; la cola no mostraba Atendido; Vecinos decía Cliente sin nombre; el Panel no resaltaba lo no atendido. `design.md` actualizado (Jost y saltos restantes).
+- Añadido: capturas en `docs/design/app/`, `lora-sim/resultados.md`, `docs/trabajo-futuro.md` y `docs/convenciones.md`.
+- Pruebas: 120 JUnit en verde; las correcciones se comprobaron en emulador. El aviso se vio, pero la vibración no se puede comprobar en emulador.
+- Pendiente o siguiente paso: lo bloqueado requiere teléfonos. El APK final (`v1.0`) espera a M2; `v1.0-prueba1` es anterior a estas correcciones.
+- Checkpoint afectado: CP0 y CP3, parciales.
 
 ### 2026-11-07 · T2.15, APK de prueba · Iker (+ IA: Claude Code)
 

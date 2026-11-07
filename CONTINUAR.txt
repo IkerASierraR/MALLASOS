@@ -33,6 +33,7 @@ Ultima sesion: 7 nov 2026
    Probado en emuladores API 26 y 37 con un vecino simulado por TCP local:
    adb shell am broadcast -n pe.upt.mallasos/.debug.DemoReceiver
    Nunca se han conectado dos telefonos reales por Wi-Fi Direct.
+   Estado tarea por tarea: tabla al inicio de memoria/progress.md.
 
 5. SIGUIENTE PASO
    Instalar en dos telefonos y cerrar el hito M1 (T1.12). El equipo debe confirmar
