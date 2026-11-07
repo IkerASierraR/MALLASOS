@@ -465,6 +465,58 @@ class MessageExchangeTest {
         assertEquals(ana.nodeId, ack.destId)
     }
 
+    @Test
+    fun `en modo basico el ACK final llega en la misma sesion`() {
+        val a = Phone(ana)
+        val d = Phone(puesto)
+        val sos = a.create(seq = 1)
+
+        repeat(30) {
+            d.seen.remove(sos.uid)
+            d.messages.remove(sos.uid)
+            a.messages[sos.uid] = a.messages.getValue(sos.uid).let { old ->
+                MessageEntity(
+                    old.uid, old.type, old.priority, old.originId, old.destId, old.seq,
+                    old.createdAt, old.ttlHours, old.hopsLeft, old.payload, MessageState.PENDING,
+                    old.isOwn, old.enqueuedAt,
+                )
+            }
+
+            // Sin el cierre ordenado, el puesto escribe en un socket ya cerrado y esto lanza.
+            contact(d, a, dtn = DtnMode.BASICO)
+
+            assertEquals(MessageState.DELIVERED, a.messages.getValue(sos.uid).state)
+        }
+    }
+
+    @Test
+    fun `un vecino que termina sin esperar ACK no rompe la sesion`() {
+        val d = Phone(puesto)
+        val port = freePort()
+        val payload = sosBytes
+        val header = Header(
+            MessageType.SOS, Priority.SOS, ana.nodeId, 1, ANY_POST, now / 1000, 24, 4, payload.size,
+        )
+        val received = CopyOnWriteArrayList<MessageType>()
+
+        runBlocking {
+            val server = async(Dispatchers.IO) {
+                runner(port).serve(puesto) { d.exchange.run(it, d.config()) }
+            }
+            runner(port).connect("127.0.0.1", ana) { session ->
+                session.frames.write(header, payload)
+                writeEnd(session, ana)
+                session.finishSending()
+                while (true) received += (session.frames.readOrNull() ?: break).header.type
+            }
+            server.await()
+        }
+
+        assertTrue(MessageType.ACK_FINAL in received)
+        assertTrue(MessageType.ACK_HOP in received)
+        assertTrue(MessageType.SUMMARY in received)
+    }
+
     /** Canal con un búfer pequeño: como un búfer TCP lleno, bloquea al que escribe. */
     private class BoundedPipe {
         private val bytes = ArrayBlockingQueue<Int>(64)

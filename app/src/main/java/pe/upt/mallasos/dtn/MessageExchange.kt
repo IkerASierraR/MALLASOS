@@ -22,7 +22,6 @@ import pe.upt.mallasos.log.Events
 import pe.upt.mallasos.p2p.LocalNode
 import pe.upt.mallasos.p2p.PeerSession
 import java.io.EOFException
-import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /** Lo que el intercambio necesita de la cola; lo implementa `MessageDao`. */
@@ -62,7 +61,8 @@ data class ExchangeConfig(
 
 /**
  * Intercambio de mensajes tras el HELLO. Cada lado envía su cola y, al vaciarla, un `SUMMARY` sin
- * contenido; la sesión acaba cuando ambos lo han hecho y ya no se espera ningún ACK.
+ * contenido. Con el `SUMMARY` del vecino ya leído, escribe lo que le quede, cierra su envío y sigue
+ * leyendo hasta que el vecino cierre el suyo: así ningún ACK en camino encuentra el socket cerrado.
  *
  * Solo una corrutina escribe en el socket y otra lee sin bloquearse nunca al escribir: si los dos
  * lados se quedaran escribiendo con el búfer TCP lleno, ninguno leería y se bloquearían.
@@ -92,9 +92,6 @@ class MessageExchange(
         private val sent = ConcurrentHashMap.newKeySet<String>()
         private val peerEnded = CompletableDeferred<Unit>()
 
-        @Volatile
-        private var finished = false
-
         suspend fun run() = coroutineScope {
             val writer = launch {
                 for (item in outbox) {
@@ -102,7 +99,7 @@ class MessageExchange(
                     item.written.complete(Unit)
                 }
             }
-            launch { readAll() }
+            val reader = launch { readAll() }
 
             sendQueue()
             outbox.send(Outgoing(controlHeader(MessageType.SUMMARY, 0), ByteArray(0)))
@@ -110,9 +107,8 @@ class MessageExchange(
 
             outbox.close()
             writer.join()
-            // Tras el SUMMARY del vecino, lo único que seguía llegando eran ACK ya atendidos.
-            finished = true
-            session.close()
+            session.finishSending()
+            reader.join()
         }
 
         private fun controlHeader(type: MessageType, payloadLength: Int) = Header(
@@ -126,6 +122,11 @@ class MessageExchange(
             hopsLeft = 0,
             payloadLength = payloadLength,
         )
+
+        /** Tras cerrar el envío ya no se responde: el mensaje sigue en la cola del otro lado. */
+        private fun enqueue(item: Outgoing) {
+            outbox.trySend(item)
+        }
 
         private suspend fun write(header: Header, payload: ByteArray) {
             val item = Outgoing(header, payload)
@@ -196,12 +197,7 @@ class MessageExchange(
 
         private suspend fun readAll() {
             while (true) {
-                val frame = try {
-                    session.frames.readOrNull()
-                } catch (error: IOException) {
-                    if (finished) return
-                    throw error
-                }
+                val frame = session.frames.readOrNull()
                 if (frame == null) {
                     if (peerEnded.isCompleted) return
                     throw EOFException("El vecino cerró sin terminar")
@@ -223,9 +219,9 @@ class MessageExchange(
         }
 
         /** Responde siempre, incluso a un duplicado (R3): el vecino no sabe qué tiene este lado. */
-        private suspend fun sendAckHop(frame: Frame) {
+        private fun sendAckHop(frame: Frame) {
             val payload = PayloadCodec.encodeAckHop(frame.header.uid)
-            outbox.send(Outgoing(controlHeader(MessageType.ACK_HOP, payload.size), payload))
+            enqueue(Outgoing(controlHeader(MessageType.ACK_HOP, payload.size), payload))
         }
 
         private fun received(frame: Frame, state: MessageState): MessageEntity {
@@ -295,7 +291,7 @@ class MessageExchange(
             events.log(Events.ENQUEUED, uid, peer.nodeId, ack.hopsLeft)
             if (Forwarding.canForward(ack, peer, now) && sent.add(uid)) {
                 val header = Forwarding.header(ack)
-                outbox.send(Outgoing(header, ack.payload))
+                enqueue(Outgoing(header, ack.payload))
                 store.recordAttempt(uid, now)
                 events.log(Events.SENT, uid, peer.nodeId, header.hopsLeft)
             }
