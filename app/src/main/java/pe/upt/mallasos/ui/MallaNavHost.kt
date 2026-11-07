@@ -10,18 +10,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.flow.combine
 import pe.upt.mallasos.AppContainer
 import pe.upt.mallasos.data.datastore.Identity
-import pe.upt.mallasos.data.datastore.QueueMode
 import pe.upt.mallasos.data.datastore.TestConfig
 import pe.upt.mallasos.dtn.QueuePolicy
+import pe.upt.mallasos.service.MallaService
 import pe.upt.mallasos.ui.screens.CreateSosScreen
 import pe.upt.mallasos.ui.screens.HomeScreen
+import pe.upt.mallasos.ui.screens.NetworkStatus
 import pe.upt.mallasos.ui.screens.QueueScreen
 import pe.upt.mallasos.ui.screens.SosSentScreen
 import pe.upt.mallasos.ui.screens.WelcomeScreen
@@ -55,6 +56,13 @@ private fun MallaNavHost(container: AppContainer, identity: Identity) {
     val config by container.settings.testConfig.collectAsState(initial = TestConfig())
     val knownNodes by container.database.knownNodes().observeAll()
         .collectAsState(initial = emptyList())
+    val serviceRunning by container.serviceRunning.collectAsState()
+    val p2p by container.wifiDirect.state.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(identity.onboarded) {
+        if (identity.onboarded) MallaService.start(context)
+    }
 
     NavHost(
         navController = nav,
@@ -71,10 +79,12 @@ private fun MallaNavHost(container: AppContainer, identity: Identity) {
         composable(Routes.HOME) {
             HomeScreen(
                 identity = identity,
+                network = NetworkStatus(serviceRunning, p2p.supported, p2p.enabled, p2p.peers.size),
                 queued = queued,
                 visibleMessages = messages.size,
                 onSos = { nav.navigate(Routes.SOS_NEW) },
                 onMessages = { nav.navigate(Routes.QUEUE) },
+                onReactivate = { MallaService.start(context) },
             )
         }
         composable(Routes.SOS_NEW) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,10 +41,12 @@ import pe.upt.mallasos.ui.theme.malla
 @Composable
 fun HomeScreen(
     identity: Identity,
+    network: NetworkStatus,
     queued: Int,
     visibleMessages: Int,
     onSos: () -> Unit,
     onMessages: () -> Unit,
+    onReactivate: () -> Unit,
 ) {
     Column(
         Modifier
@@ -68,7 +71,7 @@ fun HomeScreen(
                 MaterialTheme.colorScheme.primaryContainer,
             )
         }
-        ServiceBanner(queued)
+        ServiceBanner(network, queued, onReactivate)
         SosButton(
             onClick = onSos,
             minHeight = 168.dp,
@@ -91,13 +94,13 @@ fun HomeScreen(
         ShortcutTile(
             icon = R.drawable.ic_wifi_tethering,
             title = "Vecinos",
-            subtitle = "Disponible al conectar la red",
+            subtitle = if (network.active) "${network.neighbors} cerca ahora" else "Sin búsqueda activa",
         )
         if (identity.mode == NodeMode.PUESTO) {
             ShortcutTile(
                 icon = R.drawable.ic_apartment,
                 title = "Panel del Puesto",
-                subtitle = "Disponible al conectar la red",
+                subtitle = "Disponible próximamente",
             )
         }
         Spacer(Modifier.weight(1f))
@@ -111,21 +114,54 @@ fun HomeScreen(
     }
 }
 
-/** Mientras no exista `MallaService` (T1.7) la red se muestra detenida: nunca se finge actividad. */
+/** Estado real de la red; lo calcula `MallaNavHost` a partir del servicio y de Wi-Fi Direct. */
+data class NetworkStatus(
+    val serviceRunning: Boolean,
+    val supported: Boolean,
+    val enabled: Boolean,
+    val neighbors: Int,
+) {
+    val active: Boolean get() = serviceRunning && supported && enabled
+}
+
 @Composable
-private fun ServiceBanner(queued: Int) {
-    val text = "Red detenida · 0 vecinos · $queued en cola"
+private fun ServiceBanner(network: NetworkStatus, queued: Int, onReactivate: () -> Unit) {
+    val neighbors = if (network.neighbors == 1) "1 vecino" else "${network.neighbors} vecinos"
+    val text = when {
+        !network.serviceRunning -> "Red detenida · $queued en cola"
+        !network.supported -> "Este teléfono no tiene Wi-Fi Direct · $queued en cola"
+        !network.enabled -> "Wi-Fi apagado · $queued en cola"
+        else -> "Red activa · $neighbors · $queued en cola"
+    }
+    val content = if (network.active) malla.carried else malla.warning
+    val container = if (network.active) malla.carriedContainer else malla.warningContainer
     Row(
         Modifier
             .fillMaxWidth()
-            .background(malla.warningContainer, MaterialTheme.shapes.medium)
+            .background(container, MaterialTheme.shapes.medium)
             .padding(12.dp)
             .semantics { stateDescription = text },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(painterResource(R.drawable.ic_wifi_off), null, tint = malla.warning)
-        Text(text, style = MaterialTheme.typography.labelLarge, color = malla.warning)
+        Icon(
+            painterResource(
+                if (network.active) R.drawable.ic_wifi_tethering else R.drawable.ic_wifi_off,
+            ),
+            null,
+            tint = content,
+        )
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            color = content,
+            modifier = Modifier.weight(1f),
+        )
+        if (!network.serviceRunning) {
+            TextButton(onClick = onReactivate) {
+                Text("Reactivar", color = content)
+            }
+        }
     }
 }
 
