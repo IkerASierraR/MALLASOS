@@ -8,6 +8,7 @@ Proyecto del curso SI-882 Redes y Comunicación de Datos I, UPT, 2026-II.
 | --- | --- |
 | `app/` | App Android (Kotlin, Jetpack Compose) |
 | `lora-sim/` | Simulación LoRa en Python (fuera del APK) |
+| `analisis/` | Unión de CSV y pruebas estadísticas en Python (fuera del APK) |
 | `docs/` | Referencia visual del diseño |
 | `memoria/` | `spec.md`, `plan.md`, `tasks.md`, `progress.md` y `design.md` |
 

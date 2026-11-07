@@ -1,0 +1,51 @@
+MALLA-SOS: como continuar en otra maquina
+Ultima sesion: 7 nov 2026
+
+1. PREPARAR
+   git clone https://github.com/IkerASierraR/MALLASOS.git
+   cd MALLASOS
+   git checkout feat/wifi-direct
+
+   Usar siempre feat/wifi-direct: contiene todo el trabajo. main solo tiene la
+   estructura inicial y feat/base-app es una etapa anterior. Nada esta fusionado.
+
+   Abrir en Android Studio, que crea local.properties con la ruta del SDK.
+   Requiere los SDK 35 y 37 y el JDK de Android Studio.
+   Configurar git user.name y user.email antes de hacer commits.
+
+2. COMPROBAR
+   ./gradlew :app:assembleDebug :app:testDebugUnitTest
+   Resultado esperado: BUILD SUCCESSFUL y 115 pruebas en verde.
+   Python: python -m unittest dentro de lora-sim/ y de analisis/.
+
+3. SI CONTINUAS CON CLAUDE
+   Pidele leer memoria/spec.md, plan.md, tasks.md, progress.md y design.md.
+   Reglas que no estan en esos archivos o conviene repetir:
+   - Commits frecuentes, sin Co-Authored-By ni atribucion a Claude.
+   - Tipografia Jost, empaquetada en el APK.
+   - Commits en feat/wifi-direct; no fusionar a main sin que se pida.
+
+4. ESTADO ACTUAL
+   Hecho: tema Jost, Bienvenida, Inicio, Crear SOS, Mis mensajes, codec, Room,
+   DataStore, Wi-Fi Direct, sesion TCP con HELLO, ciclo de contactos, servicio y
+   capa DTN completa, Panel del Puesto, Detalle, Vecinos, Configuracion oculta,
+   CSV y generador de trafico (T2.2 a T2.14), mas lora-sim y analisis.
+   Probado en emuladores API 26 y 37 con un vecino simulado por TCP local:
+   adb shell am broadcast -n pe.upt.mallasos/.debug.DemoReceiver
+   Nunca se han conectado dos telefonos reales por Wi-Fi Direct.
+
+5. SIGUIENTE PASO
+   Instalar en dos telefonos y cerrar el hito M1 (T1.12). Lo unico pendiente en
+   la app es T2.15, que espera la decision D1 del equipo.
+
+6. PENDIENTES
+   - Probar en dos telefonos reales: Wi-Fi Direct nunca se ha ejecutado en uno.
+   - Probar en API 26 y en API 34 o superior.
+   - T0.5: Cristhian debe confirmar la cabecera de 19 bytes.
+   - Validar en equipo: el fin de cola usa un SUMMARY vacio (memoria/progress.md).
+   - Riesgo: el ciclo intenta conectar con cualquier dispositivo Wi-Fi Direct
+     cercano (impresoras, televisores). No hay filtro por servicio.
+   - Tras reiniciar, el servicio arranca sin el tipo location: comprobar en un
+     telefono si busca pares con la pantalla apagada.
+
+Detalle completo: memoria/progress.md

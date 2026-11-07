@@ -70,8 +70,9 @@ app/src/main/java/pe/upt/mallasos/
    1. Cada lado envía un `HELLO` con su ID, alias, modo y reloj en ms.
    2. Cada lado envía su cola en el orden que indica `QueuePolicy`.
    3. Por cada mensaje recibido se devuelve un `ACK_HOP`.
-   4. Si el receptor es el destinatario final, genera además un `ACK_FINAL`, que entra a su propia cola con la máxima prioridad y se envía en esa misma sesión.
-6. **Cierre.** Cuando ambos lados terminan, o tras un tiempo máximo de 30 s, se llama a `removeGroup()` y se vuelve a descubrir.
+   4. Si el receptor es el destinatario final, genera además un `ACK_FINAL`, que entra a su propia cola con la máxima prioridad y se envía en esa misma sesión, antes que el `ACK_HOP`.
+   5. Al vaciar su cola, y tras recibir sus `ACK_HOP`, cada lado envía un `SUMMARY` sin contenido.
+6. **Cierre.** Cuando ambos lados han enviado y recibido su `SUMMARY`, cada uno escribe lo pendiente, hace medio cierre TCP y lee hasta el fin de datos del vecino. Entonces, o tras un tiempo máximo de 30 s, se llama a `removeGroup()` y se vuelve a descubrir.
 
 ### Reintentos en modo DTN propuesto
 
@@ -112,7 +113,7 @@ Es la línea base para H1:
 | 3 | `ACK_HOP` |
 | 4 | `ACK_FINAL` |
 | 5 | `HELLO` |
-| 6 | `SUMMARY` (opcional, prioridad P1) |
+| 6 | `SUMMARY`: sin contenido indica el fin de la cola; con contenido queda para la mejora P2 |
 
 ### Contenido de un SOS (como máximo 254 bytes)
 
