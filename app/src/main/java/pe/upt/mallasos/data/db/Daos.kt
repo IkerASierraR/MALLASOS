@@ -8,9 +8,10 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import pe.upt.mallasos.dtn.MessageStore
+import pe.upt.mallasos.dtn.QueueStore
 
 @Dao
-abstract class MessageDao : MessageStore {
+abstract class MessageDao : MessageStore, QueueStore {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     protected abstract suspend fun insertMessage(message: MessageEntity)
@@ -29,9 +30,12 @@ abstract class MessageDao : MessageStore {
     @Transaction
     override suspend fun insertIfNew(message: MessageEntity): Boolean {
         if (insertSeen(SeenIdEntity(message.uid, message.enqueuedAt)) == -1L) return false
-        insertMessage(message)
-        return true
+        return insertMessageIfAbsent(message) != -1L
     }
+
+    /** Una lápida purgada puede dejar la fila de un mensaje que vuelve a llegar. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    protected abstract suspend fun insertMessageIfAbsent(message: MessageEntity): Long
 
     @Query("SELECT * FROM messages WHERE state IN ('PENDING', 'CARRIED')")
     abstract override suspend fun queued(): List<MessageEntity>
@@ -41,6 +45,15 @@ abstract class MessageDao : MessageStore {
 
     @Query("UPDATE messages SET state = 'CARRIED' WHERE uid = :uid AND state = 'PENDING'")
     abstract override suspend fun markCarried(uid: String)
+
+    @Query("UPDATE messages SET state = 'EXPIRED' WHERE uid = :uid")
+    abstract override suspend fun markExpired(uid: String)
+
+    @Query("DELETE FROM messages WHERE uid = :uid")
+    abstract override suspend fun deleteMessage(uid: String)
+
+    @Query("DELETE FROM seen_ids WHERE firstSeenAt < :beforeMs")
+    abstract override suspend fun purgeSeenBefore(beforeMs: Long)
 
     @Query("UPDATE seen_ids SET delivered = 1 WHERE uid = :uid")
     protected abstract suspend fun markSeenDelivered(uid: String)

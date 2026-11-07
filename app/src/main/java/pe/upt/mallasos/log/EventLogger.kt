@@ -17,6 +17,8 @@ object Events {
     const val DELIVERED_FINAL = "DELIVERED_FINAL"
     const val ACK_FINAL_RX = "ACK_FINAL_RX"
     const val PURGED = "PURGED"
+    const val EXPIRED = "EXPIRED"
+    const val QUEUE_EVICTED = "QUEUE_EVICTED"
     const val CLOCK_OFFSET = "CLOCK_OFFSET"
     const val DISCOVERY_START = "DISCOVERY_START"
     const val PEER_FOUND = "PEER_FOUND"
