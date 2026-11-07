@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -32,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -132,18 +134,22 @@ fun TestSettingsScreen(
                 }
                 Block("Generador de tráfico") {
                     Row(
-                        Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .toggleable(
+                                value = config.trafficEnabled,
+                                role = Role.Switch,
+                                onValueChange = { on ->
+                                    val text = if (on) "generador activo" else "generador apagado"
+                                    apply(text) { it.copy(trafficEnabled = on) }
+                                },
+                            ),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text("Mensajes normales", style = MaterialTheme.typography.bodyLarge)
-                        Switch(
-                            checked = config.trafficEnabled,
-                            onCheckedChange = { on ->
-                                val text = if (on) "generador activo" else "generador apagado"
-                                apply(text) { it.copy(trafficEnabled = on) }
-                            },
-                        )
+                        Switch(checked = config.trafficEnabled, onCheckedChange = null)
                     }
                     NumberField("Cada (segundos)", config.trafficEverySeconds, 1..3_600) { value ->
                         onChange { it.copy(trafficEverySeconds = value) }

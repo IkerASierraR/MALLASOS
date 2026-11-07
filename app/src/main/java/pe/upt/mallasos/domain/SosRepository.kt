@@ -54,7 +54,7 @@ class SosRepository(
                 enqueuedAt = now,
             ),
         )
-        logger.log(Events.CREATED, uid = uid, hopsLeft = config.hops)
+        logger.log(Events.CREATED, uid = uid, hopsLeft = config.hops, extra = "SOS")
         logger.log(Events.ENQUEUED, uid = uid, hopsLeft = config.hops)
         return uid
     }
@@ -83,7 +83,7 @@ class SosRepository(
                 enqueuedAt = now,
             ),
         )
-        logger.log(Events.CREATED, uid = uid, hopsLeft = config.hops)
+        logger.log(Events.CREATED, uid = uid, hopsLeft = config.hops, extra = "NORMAL")
         logger.log(Events.ENQUEUED, uid = uid, hopsLeft = config.hops)
     }
 }
