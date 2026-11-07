@@ -57,7 +57,16 @@ class PeerContact(
         val config = settings.testConfig.first()
         exchange.run(
             session,
-            ExchangeConfig(local, config.dtnMode, config.queueMode, config.ttlHours, config.hops),
+            ExchangeConfig(
+                local,
+                config.dtnMode,
+                config.queueMode,
+                config.ttlHours,
+                config.hops,
+                config.cutAfterBytes,
+                // Corta una sola vez: la corrida mide qué pasa en el contacto siguiente.
+                onCut = { settings.updateTestConfig { it.copy(cutAfterBytes = 0) } },
+            ),
         )
     }
 

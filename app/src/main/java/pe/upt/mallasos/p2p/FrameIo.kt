@@ -17,6 +17,9 @@ class FrameIo(input: InputStream, private val output: OutputStream) {
     /** Lanza `EOFException` si el enlace se corta a mitad de un mensaje. */
     fun read(): Frame = readOrNull() ?: throw EOFException()
 
+    /** Lee un byte suelto; `null` al terminar. Sirve para comprobar el corte de E2. */
+    fun readByteForTest(): Int? = input.read().takeIf { it >= 0 }
+
     /** Devuelve `null` si el vecino cerró su envío entre dos mensajes. */
     fun readOrNull(): Frame? {
         val first = input.read()
@@ -30,8 +33,11 @@ class FrameIo(input: InputStream, private val output: OutputStream) {
         return Frame(header, payload)
     }
 
-    fun write(header: Header, payload: ByteArray) {
-        output.write(MessageCodec.encode(header, payload))
+    fun write(header: Header, payload: ByteArray) = writeRaw(MessageCodec.encode(header, payload))
+
+    /** Admite un mensaje incompleto: así el corte de E2 deja el enlace a mitad de un mensaje. */
+    fun writeRaw(bytes: ByteArray) {
+        output.write(bytes)
         output.flush()
     }
 }

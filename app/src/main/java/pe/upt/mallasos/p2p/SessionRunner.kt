@@ -30,11 +30,13 @@ data class RemoteNode(val nodeId: Int, val alias: String, val mode: NodeMode, va
 /**
  * Sesión abierta tras el HELLO; la capa DTN intercambia aquí sus mensajes. [finishSending] avisa
  * al vecino de que no se escribirá nada más, sin dejar de leer lo que él aún tenga por enviar.
+ * [abort] corta el enlace de golpe, como en el ensayo E2.
  */
 class PeerSession(
     val remote: RemoteNode,
     val frames: FrameIo,
     val finishSending: () -> Unit = {},
+    val abort: () -> Unit = {},
 )
 
 /**
@@ -109,7 +111,7 @@ class SessionRunner(
                 val frames = FrameIo(socket.getInputStream(), socket.getOutputStream())
                 sendHello(frames, local)
                 val remote = receiveHello(frames, local)
-                onSession(PeerSession(remote, frames, socket::shutdownOutput))
+                onSession(PeerSession(remote, frames, socket::shutdownOutput, socket::close))
             } finally {
                 closer.cancel()
             }

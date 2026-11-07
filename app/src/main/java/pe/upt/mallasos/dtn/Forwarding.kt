@@ -3,6 +3,7 @@ package pe.upt.mallasos.dtn
 import pe.upt.mallasos.codec.ANY_POST
 import pe.upt.mallasos.codec.Header
 import pe.upt.mallasos.codec.MessageType
+import pe.upt.mallasos.data.datastore.DtnMode
 import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.QueueMode
 import pe.upt.mallasos.data.db.MessageEntity
@@ -25,14 +26,24 @@ object Forwarding {
         return !expired && !cameFromPeer && hopsAllowed
     }
 
-    /** Cola en orden de salida, sin lo que este vecino no debe recibir. */
+    /**
+     * Cola en orden de salida, sin lo que este vecino no debe recibir. En modo básico un mensaje ya
+     * enviado no vuelve a salir (`plan.md` §3: no reintenta), salvo el ACK final, que debe alcanzar
+     * a todas las copias.
+     */
     fun outgoing(
         queued: List<MessageEntity>,
         peer: RemoteNode,
         mode: QueueMode,
         nowMs: Long,
+        dtnMode: DtnMode = DtnMode.PROPUESTO,
     ): List<MessageEntity> =
-        QueuePolicy.order(queued, mode).filter { canForward(it, peer, nowMs) }
+        QueuePolicy.order(queued, mode).filter { message ->
+            val retryAllowed = dtnMode == DtnMode.PROPUESTO ||
+                message.attempts == 0 ||
+                message.type == MessageType.ACK_FINAL.code
+            retryAllowed && canForward(message, peer, nowMs)
+        }
 
     /** Cabecera para el vecino: cada reenvío descuenta un salto, sin bajar de 0 (R8). */
     fun header(message: MessageEntity): Header = Header(

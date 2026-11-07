@@ -106,6 +106,7 @@ class MessageExchangeTest {
 
         override suspend fun recordAttempt(uid: String, atMs: Long) {
             attempts.merge(uid, 1, Int::plus)
+            withState(uid, messages[uid]?.state ?: return)
         }
 
         private fun withState(uid: String, state: MessageState) {
@@ -113,6 +114,7 @@ class MessageExchangeTest {
             messages[uid] = MessageEntity(
                 old.uid, old.type, old.priority, old.originId, old.destId, old.seq, old.createdAt,
                 old.ttlHours, old.hopsLeft, old.payload, state, old.isOwn, old.enqueuedAt,
+                attempts = attempts[uid] ?: 0,
                 receivedFrom = old.receivedFrom,
             )
         }
@@ -515,6 +517,121 @@ class MessageExchangeTest {
         assertTrue(MessageType.ACK_FINAL in received)
         assertTrue(MessageType.ACK_HOP in received)
         assertTrue(MessageType.SUMMARY in received)
+    }
+
+    @Test
+    fun `recorre A B C D por contactos sucesivos y borra las copias`() {
+        val a = Phone(ana)
+        val b = Phone(beto)
+        val c = Phone(LocalNode(0x0C0C0C0C, "Cata", NodeMode.NORMAL))
+        val d = Phone(puesto)
+        val sos = a.create(seq = 1)
+
+        contact(a, b)
+        contact(b, c)
+        contact(c, d)
+
+        assertEquals(2, d.messages.getValue(sos.uid).hopsLeft)
+        assertEquals(MessageState.DELIVERED, d.messages.getValue(sos.uid).state)
+        assertNull(c.messages[sos.uid])
+
+        contact(b, c)
+        assertNull(b.messages[sos.uid])
+
+        contact(a, b)
+        assertEquals(MessageState.DELIVERED, a.messages.getValue(sos.uid).state)
+    }
+
+    /** Contacto en el que [sender] corta el enlace tras [bytes] bytes de mensajes. */
+    private fun cutContact(sender: Phone, receiver: Phone, dtn: DtnMode, bytes: Int): List<Throwable?> {
+        val cuts = AtomicInteger()
+        return runBlocking {
+            val port = freePort()
+            val server = async(Dispatchers.IO) {
+                runCatching {
+                    runner(port).serve(receiver.node) {
+                        receiver.exchange.run(it, receiver.config(dtn = dtn))
+                    }
+                }.exceptionOrNull()
+            }
+            val client = runCatching {
+                runner(port).connect("127.0.0.1", sender.node) { session ->
+                    sender.exchange.run(
+                        session,
+                        sender.config(dtn = dtn).copy(
+                            cutAfterBytes = bytes,
+                            onCut = { cuts.incrementAndGet() },
+                        ),
+                    )
+                }
+            }.exceptionOrNull()
+            assertEquals(1, cuts.get())
+            listOf(client, server.await())
+        }
+    }
+
+    @Test
+    fun `H1 tras un corte el DTN propuesto entrega en el contacto siguiente`() {
+        val a = Phone(ana)
+        val d = Phone(puesto)
+        val sos = a.create(seq = 1)
+
+        val (sender, receiver) = cutContact(a, d, DtnMode.PROPUESTO, bytes = 30)
+
+        assertTrue(sender is LinkCutException)
+        assertTrue(receiver is IOException)
+        assertNull(d.messages[sos.uid])
+        assertEquals(MessageState.PENDING, a.messages.getValue(sos.uid).state)
+
+        contact(d, a)
+
+        assertEquals(MessageState.DELIVERED, a.messages.getValue(sos.uid).state)
+        assertEquals(MessageState.DELIVERED, d.messages.getValue(sos.uid).state)
+    }
+
+    @Test
+    fun `H1 tras un corte el DTN basico da el salto por bueno y lo pierde`() {
+        val a = Phone(ana)
+        val d = Phone(puesto)
+        val sos = a.create(seq = 1)
+
+        cutContact(a, d, DtnMode.BASICO, bytes = 30)
+
+        assertNull(d.messages[sos.uid])
+        assertEquals(MessageState.CARRIED, a.messages.getValue(sos.uid).state)
+
+        contact(d, a, dtn = DtnMode.BASICO)
+
+        assertNull(d.messages[sos.uid])
+        assertEquals(1, a.events(Events.SENT).size)
+    }
+
+    @Test
+    fun `el corte respeta los bytes pedidos`() {
+        val port = freePort()
+        val a = Phone(ana)
+        a.create(seq = 1)
+        val bytes = runBlocking {
+            val reader = async(Dispatchers.IO) {
+                runner(port).serve(beto) { session ->
+                    var count = 0
+                    runCatching {
+                        while (true) {
+                            session.frames.readByteForTest() ?: break
+                            count++
+                        }
+                    }
+                    count
+                }
+            }
+            runCatching {
+                runner(port).connect("127.0.0.1", ana) { session ->
+                    a.exchange.run(session, a.config().copy(cutAfterBytes = 25))
+                }
+            }
+            reader.await()
+        }
+        assertEquals(25, bytes)
     }
 
     /** Canal con un búfer pequeño: como un búfer TCP lleno, bloquea al que escribe. */

@@ -112,6 +112,16 @@ fun TestSettingsScreen(
                         },
                     )
                 }
+                Block("Corte de enlace (E2)") {
+                    NumberField("Cortar tras N bytes (0 = apagado)", config.cutAfterBytes, 0..9_999) {
+                        value -> onChange { it.copy(cutAfterBytes = value) }
+                    }
+                    Text(
+                        "Se aplica a un solo contacto y vuelve a 0.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Block("Cola") {
                     SegmentedToggle(
                         options = listOf("Prioridad estricta", "Orden de llegada"),

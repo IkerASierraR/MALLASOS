@@ -141,6 +141,7 @@ class MessageViewsTest {
     fun `la etiqueta de corrida no activa el modo pruebas`() {
         assertFalse(isTestModeActive(TestConfig(runLabel = "E2-01")))
         assertTrue(isTestModeActive(TestConfig(dtnMode = DtnMode.BASICO)))
+        assertTrue(isTestModeActive(TestConfig(cutAfterBytes = 100)))
     }
 
     @Test

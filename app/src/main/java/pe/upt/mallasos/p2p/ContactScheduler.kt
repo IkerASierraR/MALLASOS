@@ -29,7 +29,8 @@ fun interface ContactSession {
 data class ContactTimings(
     val discoveryCycleMs: Long = 15_000,
     val cooldownMs: Long = 60_000,
-    val groupTimeoutMs: Long = 20_000,
+    // Algunos teléfonos piden aceptar la invitación a mano: se deja tiempo para hacerlo.
+    val groupTimeoutMs: Long = 30_000,
     val sessionTimeoutMs: Long = 30_000,
     val disconnectTimeoutMs: Long = 5_000,
     val maxJitterMs: Long = 2_000,

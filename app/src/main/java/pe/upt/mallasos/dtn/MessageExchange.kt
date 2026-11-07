@@ -9,6 +9,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import pe.upt.mallasos.codec.AckFinalPayload
 import pe.upt.mallasos.codec.Frame
 import pe.upt.mallasos.codec.Header
+import pe.upt.mallasos.codec.MessageCodec
 import pe.upt.mallasos.codec.MessageType
 import pe.upt.mallasos.codec.PayloadCodec
 import pe.upt.mallasos.codec.Priority
@@ -22,6 +23,7 @@ import pe.upt.mallasos.log.Events
 import pe.upt.mallasos.p2p.LocalNode
 import pe.upt.mallasos.p2p.PeerSession
 import java.io.EOFException
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /** Lo que el intercambio necesita de la cola; lo implementa `MessageDao`. */
@@ -50,14 +52,22 @@ data class AckTimings(
     val retryDelaysMs: List<Long> = listOf(1_000, 2_000, 4_000),
 )
 
-/** Parámetros de un contacto. [ttlHours] y [hops] se aplican a los ACK finales que se generen. */
+/**
+ * Parámetros de un contacto. [ttlHours] y [hops] se aplican a los ACK finales que se generen.
+ * [cutAfterBytes] corta el enlace tras esos bytes de mensajes (E2) y [onCut] avisa de que ocurrió.
+ */
 data class ExchangeConfig(
     val local: LocalNode,
     val dtnMode: DtnMode,
     val queueMode: QueueMode,
     val ttlHours: Int,
     val hops: Int,
+    val cutAfterBytes: Int = 0,
+    val onCut: suspend () -> Unit = {},
 )
+
+/** Corte provocado por el ensayo E2, no por el enlace (decisión D1). */
+class LinkCutException(bytes: Int) : IOException("Corte de prueba tras $bytes bytes")
 
 /**
  * Intercambio de mensajes tras el HELLO. Cada lado envía su cola y, al vaciarla, un `SUMMARY` sin
@@ -77,7 +87,7 @@ class MessageExchange(
     suspend fun run(session: PeerSession, config: ExchangeConfig) =
         Contact(session, config).run()
 
-    private class Outgoing(val header: Header, val payload: ByteArray) {
+    private class Outgoing(val bytes: ByteArray) {
         val written = CompletableDeferred<Unit>()
     }
 
@@ -91,18 +101,19 @@ class MessageExchange(
         private val awaitingAck = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
         private val sent = ConcurrentHashMap.newKeySet<String>()
         private val peerEnded = CompletableDeferred<Unit>()
+        private var messageBytes = 0
 
         suspend fun run() = coroutineScope {
             val writer = launch {
                 for (item in outbox) {
-                    session.frames.write(item.header, item.payload)
+                    session.frames.writeRaw(item.bytes)
                     item.written.complete(Unit)
                 }
             }
             val reader = launch { readAll() }
 
             sendQueue()
-            outbox.send(Outgoing(controlHeader(MessageType.SUMMARY, 0), ByteArray(0)))
+            outbox.send(outgoing(controlHeader(MessageType.SUMMARY, 0), ByteArray(0)))
             peerEnded.await()
 
             outbox.close()
@@ -128,8 +139,11 @@ class MessageExchange(
             outbox.trySend(item)
         }
 
-        private suspend fun write(header: Header, payload: ByteArray) {
-            val item = Outgoing(header, payload)
+        private fun outgoing(header: Header, payload: ByteArray) =
+            Outgoing(MessageCodec.encode(header, payload))
+
+        private suspend fun write(bytes: ByteArray) {
+            val item = Outgoing(bytes)
             outbox.send(item)
             item.written.await()
         }
@@ -142,6 +156,7 @@ class MessageExchange(
                     peer,
                     config.queueMode,
                     clockMs(),
+                    config.dtnMode,
                 ).filter { it.uid !in sent }
                 if (pending.isEmpty()) return
                 for (message in pending) {
@@ -156,17 +171,31 @@ class MessageExchange(
             DtnMode.PROPUESTO -> forwardWithAck(message)
             DtnMode.BASICO -> {
                 // R3: el salto se da por bueno al escribirlo, y no se reintenta.
-                writeAttempt(message, Events.SENT)
+                // En modo básico el corte no se nota: el salto ya se dio por bueno.
+                val cut = writeAttempt(message, Events.SENT)
                 store.markCarried(message.uid)
+                if (cut) cutLink()
                 true
             }
         }
 
-        private suspend fun writeAttempt(message: MessageEntity, event: String) {
+        /** Devuelve `true` si este mensaje alcanzó el límite del corte y salió incompleto. */
+        private suspend fun writeAttempt(message: MessageEntity, event: String): Boolean {
             val header = Forwarding.header(message)
-            write(header, message.payload)
+            val bytes = MessageCodec.encode(header, message.payload)
+            val limit = config.cutAfterBytes
+            val cut = limit > 0 && messageBytes + bytes.size >= limit
+            write(if (cut) bytes.copyOf(limit - messageBytes) else bytes)
+            messageBytes += bytes.size
             store.recordAttempt(message.uid, clockMs())
             events.log(event, message.uid, peer.nodeId, header.hopsLeft)
+            return cut
+        }
+
+        private suspend fun cutLink(): Nothing {
+            config.onCut()
+            session.abort()
+            throw LinkCutException(config.cutAfterBytes)
         }
 
         private suspend fun forwardWithAck(message: MessageEntity): Boolean {
@@ -189,7 +218,7 @@ class MessageExchange(
             ack: CompletableDeferred<Unit>,
             event: String,
         ): Boolean {
-            if (!ack.isCompleted) writeAttempt(message, event)
+            if (!ack.isCompleted && writeAttempt(message, event)) cutLink()
             withTimeoutOrNull(timings.ackTimeoutMs) { ack.await() } ?: return false
             store.markCarried(message.uid)
             return true
@@ -221,7 +250,7 @@ class MessageExchange(
         /** Responde siempre, incluso a un duplicado (R3): el vecino no sabe qué tiene este lado. */
         private fun sendAckHop(frame: Frame) {
             val payload = PayloadCodec.encodeAckHop(frame.header.uid)
-            enqueue(Outgoing(controlHeader(MessageType.ACK_HOP, payload.size), payload))
+            enqueue(outgoing(controlHeader(MessageType.ACK_HOP, payload.size), payload))
         }
 
         private fun received(frame: Frame, state: MessageState): MessageEntity {
@@ -291,7 +320,7 @@ class MessageExchange(
             events.log(Events.ENQUEUED, uid, peer.nodeId, ack.hopsLeft)
             if (Forwarding.canForward(ack, peer, now) && sent.add(uid)) {
                 val header = Forwarding.header(ack)
-                enqueue(Outgoing(header, ack.payload))
+                enqueue(outgoing(header, ack.payload))
                 store.recordAttempt(uid, now)
                 events.log(Events.SENT, uid, peer.nodeId, header.hopsLeft)
             }

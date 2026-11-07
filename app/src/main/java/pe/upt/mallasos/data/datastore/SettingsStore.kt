@@ -36,6 +36,8 @@ data class TestConfig(
     val runLabel: String = "",
     val ttlHours: Int = 24,
     val hops: Int = 5,
+    /** Decisión D1: cierra el socket tras N bytes de mensajes; 0 = apagado. */
+    val cutAfterBytes: Int = 0,
 )
 
 private val Context.dataStore by preferencesDataStore("malla_settings")
@@ -58,6 +60,7 @@ class SettingsStore(private val context: Context) {
         val RUN_LABEL = stringPreferencesKey("run_label")
         val TTL_HOURS = intPreferencesKey("ttl_hours")
         val HOPS = intPreferencesKey("hops")
+        val CUT_AFTER = intPreferencesKey("cut_after_bytes")
     }
 
     /** Emite `null` solo hasta que se genera el ID la primera vez. */
@@ -86,6 +89,7 @@ class SettingsStore(private val context: Context) {
             runLabel = prefs[Keys.RUN_LABEL] ?: defaults.runLabel,
             ttlHours = prefs[Keys.TTL_HOURS] ?: defaults.ttlHours,
             hops = prefs[Keys.HOPS] ?: defaults.hops,
+            cutAfterBytes = prefs[Keys.CUT_AFTER] ?: defaults.cutAfterBytes,
         )
     }
 
@@ -102,6 +106,7 @@ class SettingsStore(private val context: Context) {
             prefs[Keys.RUN_LABEL] = config.runLabel
             prefs[Keys.TTL_HOURS] = config.ttlHours
             prefs[Keys.HOPS] = config.hops
+            prefs[Keys.CUT_AFTER] = config.cutAfterBytes
         }
     }
 
