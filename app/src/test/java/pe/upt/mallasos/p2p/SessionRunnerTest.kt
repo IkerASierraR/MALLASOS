@@ -5,9 +5,12 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import pe.upt.mallasos.codec.ANY_POST
 import pe.upt.mallasos.codec.Header
@@ -185,6 +188,60 @@ class SessionRunnerTest {
         assertThrows(SocketTimeoutException::class.java) {
             runBlocking { runner(port).serve(puesto) { } }
         }
+    }
+
+    @Test
+    fun `cancelar la sesion libera una lectura bloqueada`() {
+        val port = freePort()
+        rawClient(port, ByteArray(0))
+        val patient = SessionRunner(port = port, acceptTimeoutMs = 2_000, readTimeoutMs = 30_000)
+        val startedAt = System.nanoTime()
+        // Según el orden de cierre sale por el tiempo límite o por el socket cerrado.
+        runCatching {
+            runBlocking { withTimeoutOrNull(200) { patient.serve(puesto) { } } }
+        }
+        assertTrue((System.nanoTime() - startedAt) / 1_000_000 < 5_000)
+    }
+
+    @Test
+    fun `finishSending avisa del fin sin cortar la lectura`() = runBlocking {
+        val port = freePort()
+        val header = Header(
+            type = MessageType.ACK_HOP,
+            priority = Priority.CONTROL,
+            originId = puesto.nodeId,
+            seq = 1,
+            destId = persona.nodeId,
+            timestampSeconds = 1,
+            ttlHours = 1,
+            hopsLeft = 1,
+            payloadLength = 1,
+        )
+        val server = async(Dispatchers.IO) {
+            runner(port).serve(puesto) { session ->
+                val end = session.frames.readOrNull()
+                session.frames.write(header, byteArrayOf(9))
+                end
+            }
+        }
+        val answer = runner(port).connect("127.0.0.1", persona) { session ->
+            session.finishSending()
+            session.frames.read()
+        }
+        assertNull(server.await())
+        assertArrayEquals(byteArrayOf(9), answer.payload)
+    }
+
+    @Test
+    fun `readOrNull distingue el fin limpio de un corte`() {
+        val empty = FrameIo(ByteArrayInputStream(ByteArray(0)), ByteArrayOutputStream())
+        assertNull(empty.readOrNull())
+
+        val cut = FrameIo(
+            ByteArrayInputStream(helloFrame(origin = 5).copyOf(10)),
+            ByteArrayOutputStream(),
+        )
+        assertThrows(EOFException::class.java) { cut.readOrNull() }
     }
 
     @Test

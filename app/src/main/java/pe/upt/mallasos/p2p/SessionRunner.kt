@@ -1,7 +1,11 @@
 package pe.upt.mallasos.p2p
 
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pe.upt.mallasos.codec.ANY_POST
 import pe.upt.mallasos.codec.Header
@@ -23,8 +27,15 @@ data class LocalNode(val nodeId: Int, val alias: String, val mode: NodeMode)
 
 data class RemoteNode(val nodeId: Int, val alias: String, val mode: NodeMode, val clockMs: Long)
 
-/** Sesión abierta tras el HELLO; las tareas de la capa DTN intercambian aquí sus mensajes. */
-class PeerSession(val remote: RemoteNode, val frames: FrameIo)
+/**
+ * Sesión abierta tras el HELLO; la capa DTN intercambia aquí sus mensajes. [finishSending] avisa al
+ * vecino de que no se enviará nada más, sin dejar de leer lo que aún tenga para este teléfono.
+ */
+class PeerSession(
+    val remote: RemoteNode,
+    val frames: FrameIo,
+    val finishSending: () -> Unit = {},
+)
 
 /**
  * Sesión TCP entre dos teléfonos: el Group Owner llama a [serve] y el cliente a [connect].
@@ -39,7 +50,7 @@ class SessionRunner(
     private val retryDelayMs: Long = 500,
     private val clockMs: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun <T> serve(local: LocalNode, onSession: (PeerSession) -> T): T =
+    suspend fun <T> serve(local: LocalNode, onSession: suspend (PeerSession) -> T): T =
         withContext(Dispatchers.IO) {
             val server = ServerSocket().apply {
                 reuseAddress = true
@@ -51,7 +62,11 @@ class SessionRunner(
         }
 
     /** El servidor del Group Owner puede tardar en abrir: se reintenta unas cuantas veces. */
-    suspend fun <T> connect(host: String, local: LocalNode, onSession: (PeerSession) -> T): T =
+    suspend fun <T> connect(
+        host: String,
+        local: LocalNode,
+        onSession: suspend (PeerSession) -> T,
+    ): T =
         withContext(Dispatchers.IO) {
             val socket = open(host)
             run(socket, local, onSession)
@@ -73,13 +88,32 @@ class SessionRunner(
         }
     }
 
-    private fun <T> run(socket: Socket, local: LocalNode, onSession: (PeerSession) -> T): T =
-        socket.use {
-            it.soTimeout = readTimeoutMs
-            val frames = FrameIo(it.getInputStream(), it.getOutputStream())
-            sendHello(frames, local)
-            onSession(PeerSession(receiveHello(frames, local), frames))
+    private suspend fun <T> run(
+        socket: Socket,
+        local: LocalNode,
+        onSession: suspend (PeerSession) -> T,
+    ): T = socket.use {
+        coroutineScope {
+            // Las lecturas y escrituras bloqueadas ignoran la cancelación: cerrar el socket las
+            // libera, y así se respeta el límite de sesión.
+            val closer = launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    awaitCancellation()
+                } finally {
+                    socket.close()
+                }
+            }
+            try {
+                socket.soTimeout = readTimeoutMs
+                val frames = FrameIo(socket.getInputStream(), socket.getOutputStream())
+                sendHello(frames, local)
+                val remote = receiveHello(frames, local)
+                onSession(PeerSession(remote, frames, socket::shutdownOutput))
+            } finally {
+                closer.cancel()
+            }
         }
+    }
 
     private fun sendHello(frames: FrameIo, local: LocalNode) {
         val now = clockMs()

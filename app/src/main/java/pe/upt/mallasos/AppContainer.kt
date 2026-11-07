@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import pe.upt.mallasos.data.datastore.SettingsStore
 import pe.upt.mallasos.data.db.MallaDatabase
 import pe.upt.mallasos.domain.SosRepository
+import pe.upt.mallasos.dtn.MessageExchange
 import pe.upt.mallasos.log.EventLogger
 import pe.upt.mallasos.p2p.ContactScheduler
 import pe.upt.mallasos.p2p.PeerContact
@@ -26,7 +27,13 @@ class AppContainer(context: Context) {
     val wifiDirect = WifiDirectManager(context, scope, logger, settings)
     val contacts = ContactScheduler(
         wifiDirect,
-        PeerContact(SessionRunner(), settings, database.knownNodes(), logger),
+        PeerContact(
+            SessionRunner(),
+            settings,
+            database.knownNodes(),
+            MessageExchange(database.messages(), logger),
+            logger,
+        ),
     )
 
     /** Lo actualiza `MallaService`; Inicio lo usa para mostrar la franja de estado. */

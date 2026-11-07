@@ -7,15 +7,16 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
+import pe.upt.mallasos.dtn.MessageStore
 
 @Dao
-abstract class MessageDao {
+abstract class MessageDao : MessageStore {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     protected abstract suspend fun insertMessage(message: MessageEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    protected abstract suspend fun insertSeen(seen: SeenIdEntity)
+    protected abstract suspend fun insertSeen(seen: SeenIdEntity): Long
 
     /** El mensaje y su identificador se registran juntos para que un duplicado nunca se guarde (R5). */
     @Transaction
@@ -23,6 +24,17 @@ abstract class MessageDao {
         insertMessage(message)
         insertSeen(SeenIdEntity(message.uid, message.enqueuedAt))
     }
+
+    /** Un identificador ya visto no se guarda de nuevo, aunque la copia se haya purgado (R5). */
+    @Transaction
+    override suspend fun insertIfNew(message: MessageEntity): Boolean {
+        if (insertSeen(SeenIdEntity(message.uid, message.enqueuedAt)) == -1L) return false
+        insertMessage(message)
+        return true
+    }
+
+    @Query("SELECT * FROM messages WHERE state IN ('PENDING', 'CARRIED')")
+    abstract override suspend fun queued(): List<MessageEntity>
 
     @Query("SELECT * FROM messages WHERE type IN (1, 2) ORDER BY enqueuedAt DESC")
     abstract fun observeVisible(): Flow<List<MessageEntity>>
