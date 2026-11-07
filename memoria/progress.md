@@ -1,0 +1,130 @@
+# progress.md: avance de MALLA-SOS
+
+> Archivo vivo. Se actualiza al terminar cada sesión de trabajo, humana o con IA.
+> **Última actualización:** 7 nov 2026 · **Fase actual:** 0 (preparación) · **Próximo hito:** M1 (15 nov)
+
+---
+
+## Instrucciones para la IA (leer primero)
+
+Antes de escribir código:
+
+1. Lee `spec.md`, `plan.md`, `tasks.md` y este archivo. Si es una tarea de interfaz, lee también `design.md`.
+2. Trabaja **una sola tarea** de `tasks.md` por sesión. Identifícala por su ID, por ejemplo T1.4.
+3. No cambies el formato del mensaje, los nombres de los eventos del CSV ni las reglas R1 a R10 sin registrar una decisión en la sección "Decisiones".
+4. No agregues dependencias nuevas: nada de Hilt ni de Google Play Services. Si hace falta una, propónla primero.
+5. Escribe pruebas JUnit para el códec, la cola y la lógica DTN.
+6. Al terminar, haz lo siguiente:
+   - actualiza la tabla de estado;
+   - agrega una entrada al registro de sesiones;
+   - marca el checkpoint si se cumplió.
+7. Si algo bloquea la tarea, regístralo en "Bloqueos" y detente. No inventes soluciones al formato ni al protocolo.
+
+## Estado por tarea
+
+Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
+
+| Fase | Tareas | Estado | Notas |
+| --- | --- | --- | --- |
+| 0. Preparación | T0.1 – T0.6 | ⬜ | El repositorio aún no existe |
+| 1. Base de la app | T1.1 – T1.12 | ⬜ | |
+| 2. DTN y prioridad | T2.1 – T2.16 | ⬜ | |
+| 3. Ensayos | T3.1 – T3.7 | ⬜ | E5 puede empezar ya (fuera de la app) |
+| 4. Cierre | T4.1 – T4.6 | ⬜ | Entrega: 18 dic |
+
+### Detalle de las tareas en curso
+
+| ID | Resp. | Estado | Rama o PR | Última nota |
+| --- | --- | --- | --- | --- |
+| — | — | — | — | — |
+
+## Checkpoints
+
+### CP0: proyecto listo (meta: 9 nov)
+
+- [ ] Repositorio creado con `/app`, `/lora-sim` y `/docs`.
+- [ ] El proyecto compila y abre en un teléfono con API 26.
+- [ ] Cabecera de 19 bytes confirmada (T0.5).
+- [ ] Inventario de teléfonos completo.
+
+### CP1 / M1: dos teléfonos hablan (meta: 15 nov)
+
+- [ ] Búsqueda y conexión entre 2 marcas distintas.
+- [ ] HELLO intercambiado por TCP; IP del Group Owner 192.168.49.1.
+- [ ] Un SOS creado en A aparece en la cola de B.
+- [ ] T0 a T3 registrados en la tabla `events`.
+- [ ] El servicio en primer plano sigue activo con la pantalla apagada.
+
+### CP2: prueba piloto (meta: antes del 16 nov)
+
+- [ ] Distancias útiles medidas.
+- [ ] Umbrales de E1 fijados.
+- [ ] Problemas por modelo documentados.
+
+### CP3 / M2: MVP completo (meta: 29 nov)
+
+- [ ] Recorrido A→B→D: entrega, ACK final y purga de copias.
+- [ ] Duplicados descartados; "Atendido" funciona en el Puesto.
+- [ ] Interruptores DTN y cola operativos.
+- [ ] Generador de tráfico y exportación a CSV operativos.
+- [ ] Decisión D1 resuelta.
+- [ ] Se cumplen los criterios de aceptación de `spec.md` §10.
+
+### CP4: datos de los ensayos (meta: 13 dic)
+
+- [ ] E1 terminado (16–22 nov).
+- [ ] E2 y E3: al menos 30 corridas cada uno (30 nov – 6 dic).
+- [ ] E4: 20 repeticiones por recorrido (7–13 dic).
+- [ ] E5: cálculo y simulación listos (hasta 6 dic).
+
+### CP5: entrega (meta: 18 dic)
+
+- [ ] APK `v1.0` en GitHub.
+- [ ] Reportes de pruebas.
+- [ ] Artículo final.
+- [ ] Artículos de la Unidad III.
+
+## Inventario de teléfonos
+
+| Dueño | Marca y modelo | Android (API) | Wi-Fi Direct OK | Observaciones |
+| --- | --- | --- | --- | --- |
+| Iker | | | ⬜ | |
+| Cristhian | | | ⬜ | |
+| Abel | | | ⬜ | |
+| Dayan | | | ⬜ | |
+
+## Decisiones
+
+| Fecha | Decisión | Motivo |
+| --- | --- | --- |
+| 7 nov | Todos los teléfonos son iguales; solo el modo Puesto confirma SOS dirigidos a `FFFFFFFF` | Simplicidad y fidelidad al escenario del albergue |
+| 7 nov | El ACK final es automático al recibir; "Atendido" es solo visual | Mediciones H1 y E4 independientes del operador |
+| 7 nov | Mensajes normales solo como tráfico de prueba | El MVP se centra en el SOS |
+| 7 nov | Servicio en primer plano | El voluntario lleva los mensajes con el teléfono en el bolsillo |
+| 7 nov | Solo el cifrado del grupo; la firma de SOS queda como trabajo futuro (Unidad III, Dayan) | Alcance y tiempo |
+| 7 nov | Compose, API 26 o superior, Stitch para la interfaz, desarrollo guiado por IA | Elección del equipo |
+| — | D1: método de corte para E2 | **Pendiente** (antes del 30 nov) |
+
+## Bloqueos
+
+| Fecha | Tarea | Bloqueo | Quién lo resuelve |
+| --- | --- | --- | --- |
+| — | — | — | — |
+
+## Registro de sesiones
+
+> Plantilla. Copia el bloque por cada sesión, con la más reciente arriba.
+
+```
+### AAAA-MM-DD · <ID de tarea> · <responsable> (+ IA: <herramienta>)
+- Hecho:
+- Archivos tocados:
+- Pruebas: (JUnit / en teléfono: modelos)
+- Pendiente o siguiente paso:
+- Checkpoint afectado:
+```
+
+### 2026-11-07 · Planificación · equipo + Claude
+
+- Hecho: generados `spec.md`, `plan.md`, `tasks.md`, `progress.md` y `design.md`.
+- Siguiente paso: T0.1 (crear el repositorio) y T0.5 (confirmar la cabecera).

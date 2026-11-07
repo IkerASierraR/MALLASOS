@@ -1,0 +1,28 @@
+# Gradle / Android
+.gradle/
+build/
+local.properties
+captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# IDE
+.idea/
+*.iml
+.kotlin/
+
+# Python (lora-sim)
+__pycache__/
+.venv/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Diseño: las capturas viven en docs/design
+memoria/diseño/
