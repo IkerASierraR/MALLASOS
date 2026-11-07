@@ -15,7 +15,7 @@ Ultima sesion: 7 nov 2026
 
 2. COMPROBAR
    ./gradlew :app:assembleDebug :app:testDebugUnitTest
-   Resultado esperado: BUILD SUCCESSFUL y 55 pruebas en verde.
+   Resultado esperado: BUILD SUCCESSFUL y 79 pruebas en verde.
 
 3. SI CONTINUAS CON CLAUDE
    Pidele leer memoria/spec.md, plan.md, tasks.md, progress.md y design.md.
@@ -26,12 +26,13 @@ Ultima sesion: 7 nov 2026
 
 4. ESTADO ACTUAL
    Hecho: tema Jost, Bienvenida, Inicio, Crear SOS, Mis mensajes, codec, Room,
-   DataStore, Wi-Fi Direct, sesion TCP con HELLO, ciclo de contactos y servicio.
-   Aun NO se transmiten mensajes: dos telefonos solo se saludan con HELLO.
+   DataStore, Wi-Fi Direct, sesion TCP con HELLO, ciclo de contactos, servicio y
+   paso de la cola al vecino (T2.8), con saltos y descarte de duplicados.
+   Aun NO hay ACK: el mensaje se reenvia en cada contacto y nunca cambia de estado.
 
 5. SIGUIENTE PASO
-   T2.8: pasar la cola al vecino dentro de la sesion (p2p/PeerContact.kt) y
-   descontar saltos. Luego, con T2.2 y T2.4, cerrar el hito M1 (T1.12).
+   T2.2: ACK salto a salto dentro de dtn/MessageExchange.kt, y responder tambien
+   a los duplicados (T2.4). Luego, en dos telefonos, cerrar el hito M1 (T1.12).
 
 6. PENDIENTES
    - Probar en dos telefonos reales: Wi-Fi Direct nunca se ha ejecutado en uno.

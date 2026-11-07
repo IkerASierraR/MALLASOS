@@ -28,7 +28,7 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | --- | --- | --- | --- |
 | 0. Preparación | T0.1 – T0.6 | 🔄 | T0.1 y T0.2 hechas; faltan T0.3 a T0.6 |
 | 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.4, T1.5 y T1.7 escritas, sin probar en teléfonos; T1.6 y T1.8 parciales |
-| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 hecha; T2.7 escrita, sin probar en teléfonos; T2.10 parcial (solo Cola) |
+| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 hecha; T2.7 y T2.8 escritas, sin probar en teléfonos; T2.4 parcial (descarta duplicados, sin `ACK_HOP`); T2.10 parcial (solo Cola) |
 | 3. Ensayos | T3.1 – T3.7 | ⬜ | E5 puede empezar ya (fuera de la app) |
 | 4. Cierre | T4.1 – T4.6 | ⬜ | Entrega: 18 dic |
 
@@ -109,6 +109,10 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | 7 nov | Del diseño de Stitch se omiten LoRa, dBm y Ed25519, y el rojo es `#C62828` | Quedan fuera del MVP o contradicen `design.md` |
 | 7 nov | `MallaService` retiene un `PARTIAL_WAKE_LOCK` mientras está activo (permiso `WAKE_LOCK`, no listado en `plan.md`) | Criterio 7 de `spec.md`: el intercambio debe seguir con la pantalla apagada |
 | 7 nov | Los fallos de sesión se registran como `LINK_LOST` con `extra=session:<causa>` | No hay evento propio y el CSV no admite nombres nuevos sin decisión |
+| 7 nov | El fin de la cola se señala con un medio cierre TCP (`shutdownOutput`), sin tipo de mensaje nuevo | No cambia el formato de `plan.md` §4 y `SUMMARY` sigue siendo opcional |
+| 7 nov | Un mensaje recibido se guarda como `CARRIED`, con `isOwn=false` | Es lo que muestra "En tránsito" en la pestaña Llevando; `PENDING` queda para lo que espera su salto (T2.2) |
+| 7 nov | No se devuelve un mensaje a su origen ni a quien lo entregó | Evita reenvíos inútiles; el receptor los descartaría como duplicados |
+| 7 nov | Un SOS mal formado corta la sesión (`LINK_LOST`, `extra=session:malformed`) sin guardarse | Se reutiliza el tratamiento del HELLO; no hay evento propio y es un caso anómalo |
 | — | D1: método de corte para E2 | **Pendiente** (antes del 30 nov) |
 
 ## Bloqueos
@@ -129,6 +133,16 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 - Pendiente o siguiente paso:
 - Checkpoint afectado:
 ```
+
+### 2026-11-07 · T2.8 · Iker (+ IA: Claude Code)
+
+- Hecho: `MessageExchange` (tras el HELLO, cada lado envía su cola y lee la del vecino a la vez, y cierra su envío al terminar) y `Forwarding` (R6, R7 y R8: orden de salida, vencidos, saltos, destino final y descuento de saltos). `insertIfNew` descarta duplicados con `seen_ids`. `SessionRunner` cierra el socket al cancelar, para que una escritura bloqueada respete el límite de 30 s. Eventos nuevos: `SENT`, `RECEIVED`, `ENQUEUED` en el receptor y `DUPLICATE_DROPPED`.
+- Archivos tocados: `app/.../dtn/`, `p2p/`, `data/db/Daos.kt`, `log/EventLogger.kt`, `AppContainer.kt`, `CONTINUAR.txt`.
+- Pruebas: 79 JUnit en verde en 6 corridas seguidas; lint sin errores. El intercambio se probó con TCP real en localhost y `MessageStore` en memoria, incluido A→B→D por contactos sucesivos. Sin teléfonos ni emulador: `MessageDao.insertIfNew` y `queued` compilan con Room, pero no se han ejecutado.
+- Corregida una carrera ya existente en `ContactSchedulerTest` (el sondeo podía publicar el grupo dos veces).
+- Límites conocidos hasta T2.2 y T2.5: sin `ACK_HOP`, cada mensaje se reenvía en cada contacto con un vecino nuevo y su estado no cambia; el destinatario final lo guarda como `CARRIED` y puede seguir reenviándolo, porque aún no genera `ACK_FINAL`.
+- Pendiente o siguiente paso: T2.2 (ACK salto a salto) y el resto de T2.4; luego probar en dos teléfonos para cerrar M1 (T1.12).
+- Checkpoint afectado: CP1, sin completar.
 
 ### 2026-11-07 · T1.7, T2.7 · Iker (+ IA: Claude Code)
 
