@@ -136,7 +136,7 @@ fun TestSettingsScreen(
                 Block("Intent de Group Owner") {
                     SegmentedToggle(
                         options = listOf("0", "7", "15", "Auto"),
-                        selected = GO_INTENTS.indexOf(config.goIntent).coerceAtLeast(3),
+                        selected = GO_INTENTS.indexOf(config.goIntent).takeIf { it >= 0 } ?: GO_INTENTS.lastIndex,
                         onSelect = { index ->
                             apply("intent ${GO_INTENTS[index]}") { it.copy(goIntent = GO_INTENTS[index]) }
                         },

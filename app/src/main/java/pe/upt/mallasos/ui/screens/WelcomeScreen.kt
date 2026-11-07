@@ -275,6 +275,21 @@ private data class PermissionState(
 private fun Context.granted(permission: String) =
     ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
+/** Permisos sin los que no se pueden buscar vecinos (`plan.md` §7). */
+fun hasNetworkPermissions(context: Context): Boolean =
+    context.granted(Manifest.permission.ACCESS_FINE_LOCATION) &&
+        (Build.VERSION.SDK_INT < 33 || context.granted(Manifest.permission.NEARBY_WIFI_DEVICES))
+
+/** Ajustes de la app, donde se concede un permiso ya denegado. */
+fun openAppSettings(context: Context) {
+    context.startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", context.packageName, null),
+        ),
+    )
+}
+
 private fun readPermissions(context: Context): PermissionState {
     val power = context.getSystemService(PowerManager::class.java)
     val location = context.getSystemService(LocationManager::class.java)
@@ -300,14 +315,7 @@ private fun PermissionsStep() {
     val request = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { state = readPermissions(context) }
-    val openSettings = {
-        context.startActivity(
-            Intent(
-                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                Uri.fromParts("package", context.packageName, null),
-            ),
-        )
-    }
+    val openSettings = { openAppSettings(context) }
     val requestable = buildList {
         add(Manifest.permission.ACCESS_FINE_LOCATION)
         if (Build.VERSION.SDK_INT >= 33) {

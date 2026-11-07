@@ -151,7 +151,15 @@ private fun LinkCard(p2p: P2pState, serviceRunning: Boolean, goIntent: String) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             TechRow("Estado", state)
             if (group != null) {
-                TechRow("Rol", if (group.isGroupOwner) "Este teléfono es Group Owner" else "Cliente")
+                val owner = p2p.peers.firstOrNull { it.status == 0 }?.name.orEmpty()
+                TechRow(
+                    "Rol",
+                    when {
+                        group.isGroupOwner -> "Este teléfono es Group Owner"
+                        owner.isBlank() -> "Cliente"
+                        else -> "Cliente de $owner"
+                    },
+                )
                 TechRow("IP del Group Owner", group.ownerAddress)
             }
             TechRow("Intent de Group Owner", intent)
