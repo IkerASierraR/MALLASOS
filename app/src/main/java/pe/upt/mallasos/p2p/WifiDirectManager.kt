@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager.FEATURE_WIFI_DIRECT
 import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDeviceList
@@ -60,8 +61,10 @@ class WifiDirectManager(
     private val scope: CoroutineScope,
     private val logger: EventLogger,
     private val settings: SettingsStore,
-) {
-    private val manager: WifiP2pManager? = context.getSystemService(WifiP2pManager::class.java)
+) : P2pLink {
+    private val supported = context.packageManager.hasSystemFeature(FEATURE_WIFI_DIRECT)
+    private val manager: WifiP2pManager? =
+        if (supported) context.getSystemService(WifiP2pManager::class.java) else null
     private var channel: WifiP2pManager.Channel? = null
     private var receiverRegistered = false
 
@@ -73,7 +76,7 @@ class WifiDirectManager(
     private var closing = false
 
     private val _state = MutableStateFlow(P2pState(supported = manager != null))
-    val state: StateFlow<P2pState> = _state.asStateFlow()
+    override val state: StateFlow<P2pState> = _state.asStateFlow()
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -122,7 +125,7 @@ class WifiDirectManager(
     }
 
     /** Inicia un ciclo de búsqueda (T0). El sistema avisa de los pares por `state`. */
-    suspend fun discover() {
+    override suspend fun discover() {
         peersThisCycle.clear()
         logger.log(Events.DISCOVERY_START)
         action("discoverPeers") { manager, channel, listener ->
@@ -134,7 +137,7 @@ class WifiDirectManager(
      * Pide conectar con [peer] (T2). Terminar sin error solo significa que el sistema aceptó la
      * orden: el grupo aparece después en `state` (T3).
      */
-    suspend fun connect(peer: P2pPeer) {
+    override suspend fun connect(peer: P2pPeer) {
         val intent = settings.testConfig.first().goIntent
         val config = WifiP2pConfig().apply {
             deviceAddress = peer.address
@@ -148,7 +151,7 @@ class WifiDirectManager(
     }
 
     /** Sale del grupo actual o cancela una conexión en curso. */
-    suspend fun disconnect() {
+    override suspend fun disconnect() {
         if (_state.value.group == null) {
             action("cancelConnect") { manager, channel, listener ->
                 manager.cancelConnect(channel, listener)
@@ -201,16 +204,21 @@ class WifiDirectManager(
         val manager = manager ?: throw P2pActionException(name, WifiP2pManager.P2P_UNSUPPORTED)
         val channel = channel ?: throw P2pActionException(name, WifiP2pManager.ERROR)
         suspendCancellableCoroutine { continuation ->
-            call(
-                manager,
-                channel,
-                object : WifiP2pManager.ActionListener {
-                    override fun onSuccess() = continuation.resume(Unit)
+            try {
+                call(
+                    manager,
+                    channel,
+                    object : WifiP2pManager.ActionListener {
+                        override fun onSuccess() = continuation.resume(Unit)
 
-                    override fun onFailure(reason: Int) =
-                        continuation.resumeWithException(P2pActionException(name, reason))
-                },
-            )
+                        override fun onFailure(reason: Int) =
+                            continuation.resumeWithException(P2pActionException(name, reason))
+                    },
+                )
+            } catch (_: SecurityException) {
+                // El usuario puede no haber concedido los permisos en la bienvenida.
+                continuation.resumeWithException(P2pActionException(name, WifiP2pManager.ERROR))
+            }
         }
     }
 }
