@@ -28,13 +28,13 @@ data class LocalNode(val nodeId: Int, val alias: String, val mode: NodeMode)
 data class RemoteNode(val nodeId: Int, val alias: String, val mode: NodeMode, val clockMs: Long)
 
 /**
- * Sesión abierta tras el HELLO; la capa DTN intercambia aquí sus mensajes. [finishSending] avisa al
- * vecino de que no se enviará nada más, sin dejar de leer lo que aún tenga para este teléfono.
+ * Sesión abierta tras el HELLO; la capa DTN intercambia aquí sus mensajes. [close] libera una
+ * lectura bloqueada cuando ya no se espera nada más.
  */
 class PeerSession(
     val remote: RemoteNode,
     val frames: FrameIo,
-    val finishSending: () -> Unit = {},
+    val close: () -> Unit = {},
 )
 
 /**
@@ -45,7 +45,8 @@ class PeerSession(
 class SessionRunner(
     private val port: Int = SESSION_PORT,
     private val acceptTimeoutMs: Int = 15_000,
-    private val readTimeoutMs: Int = 5_000,
+    // Mayor que la pausa más larga del vecino entre dos reintentos: 3 s de espera + 4 s.
+    private val readTimeoutMs: Int = 10_000,
     private val connectAttempts: Int = 5,
     private val retryDelayMs: Long = 500,
     private val clockMs: () -> Long = System::currentTimeMillis,
@@ -108,7 +109,7 @@ class SessionRunner(
                 val frames = FrameIo(socket.getInputStream(), socket.getOutputStream())
                 sendHello(frames, local)
                 val remote = receiveHello(frames, local)
-                onSession(PeerSession(remote, frames, socket::shutdownOutput))
+                onSession(PeerSession(remote, frames, socket::close))
             } finally {
                 closer.cancel()
             }

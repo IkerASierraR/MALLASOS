@@ -13,14 +13,15 @@ private const val MS_PER_HOUR = 3_600_000L
 /** Qué mensajes de la cola se pasan a un vecino y con qué cabecera (R6, R7 y R8). */
 object Forwarding {
 
-    /** El vecino es el destinatario final: su ID, o cualquier puesto si está en modo Puesto (R2). */
-    fun isFinalDestination(message: MessageEntity, peer: RemoteNode): Boolean =
-        message.destId == peer.nodeId || (message.destId == ANY_POST && peer.mode == NodeMode.PUESTO)
+    /** Un nodo es el destinatario final: su ID, o cualquier puesto si está en modo Puesto (R2). */
+    fun isDestination(destId: Int, nodeId: Int, mode: NodeMode): Boolean =
+        destId == nodeId || (destId == ANY_POST && mode == NodeMode.PUESTO)
 
     fun canForward(message: MessageEntity, peer: RemoteNode, nowMs: Long): Boolean {
         val expired = nowMs >= message.createdAt + message.ttlHours * MS_PER_HOUR
         val cameFromPeer = message.originId == peer.nodeId || message.receivedFrom == peer.nodeId
-        val hopsAllowed = message.hopsLeft > 0 || isFinalDestination(message, peer)
+        val hopsAllowed = message.hopsLeft > 0 ||
+            isDestination(message.destId, peer.nodeId, peer.mode)
         return !expired && !cameFromPeer && hopsAllowed
     }
 

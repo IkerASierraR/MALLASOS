@@ -204,35 +204,6 @@ class SessionRunnerTest {
     }
 
     @Test
-    fun `finishSending avisa del fin sin cortar la lectura`() = runBlocking {
-        val port = freePort()
-        val header = Header(
-            type = MessageType.ACK_HOP,
-            priority = Priority.CONTROL,
-            originId = puesto.nodeId,
-            seq = 1,
-            destId = persona.nodeId,
-            timestampSeconds = 1,
-            ttlHours = 1,
-            hopsLeft = 1,
-            payloadLength = 1,
-        )
-        val server = async(Dispatchers.IO) {
-            runner(port).serve(puesto) { session ->
-                val end = session.frames.readOrNull()
-                session.frames.write(header, byteArrayOf(9))
-                end
-            }
-        }
-        val answer = runner(port).connect("127.0.0.1", persona) { session ->
-            session.finishSending()
-            session.frames.read()
-        }
-        assertNull(server.await())
-        assertArrayEquals(byteArrayOf(9), answer.payload)
-    }
-
-    @Test
     fun `readOrNull distingue el fin limpio de un corte`() {
         val empty = FrameIo(ByteArrayInputStream(ByteArray(0)), ByteArrayOutputStream())
         assertNull(empty.readOrNull())

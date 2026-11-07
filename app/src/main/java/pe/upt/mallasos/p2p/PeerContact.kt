@@ -8,6 +8,7 @@ import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.SettingsStore
 import pe.upt.mallasos.data.db.KnownNodeDao
 import pe.upt.mallasos.data.db.KnownNodeEntity
+import pe.upt.mallasos.dtn.ExchangeConfig
 import pe.upt.mallasos.dtn.MessageExchange
 import pe.upt.mallasos.log.EventLogger
 import pe.upt.mallasos.log.Events
@@ -27,9 +28,9 @@ class PeerContact(
         val local = LocalNode(identity.nodeId, identity.alias, identity.mode)
         try {
             if (group.isGroupOwner) {
-                runner.serve(local, ::onSession)
+                runner.serve(local) { onSession(local, it) }
             } else {
-                runner.connect(group.ownerAddress, local, ::onSession)
+                runner.connect(group.ownerAddress, local) { onSession(local, it) }
             }
         } catch (error: IOException) {
             logFailure(error.javaClass.simpleName)
@@ -38,7 +39,7 @@ class PeerContact(
         }
     }
 
-    private suspend fun onSession(session: PeerSession) {
+    private suspend fun onSession(local: LocalNode, session: PeerSession) {
         val remote = session.remote
         knownNodes.upsert(
             KnownNodeEntity(
@@ -48,7 +49,11 @@ class PeerContact(
                 lastSeenAt = System.currentTimeMillis(),
             ),
         )
-        exchange.run(session, settings.testConfig.first().queueMode)
+        val config = settings.testConfig.first()
+        exchange.run(
+            session,
+            ExchangeConfig(local, config.dtnMode, config.queueMode, config.ttlHours, config.hops),
+        )
     }
 
     /** Se registra también si el límite de sesión cortó el enlace y canceló esta corrutina. */

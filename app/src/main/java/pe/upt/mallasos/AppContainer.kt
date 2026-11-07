@@ -31,7 +31,7 @@ class AppContainer(context: Context) {
             SessionRunner(),
             settings,
             database.knownNodes(),
-            MessageExchange(database.messages(), logger),
+            MessageExchange(database.messages(), logger, settings::takeSequence),
             logger,
         ),
     )
