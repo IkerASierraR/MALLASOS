@@ -191,7 +191,7 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada por teléf
 - Corregido: el selector de intent marcaba siempre Auto; el aviso de SOS nuevo quedaba oculto; faltaba la franja sin permisos en Inicio; la cola no mostraba Atendido; Vecinos decía Cliente sin nombre; el Panel no resaltaba lo no atendido. `design.md` actualizado (Jost y saltos restantes).
 - Añadido: capturas en `docs/design/app/`, `lora-sim/resultados.md`, `docs/trabajo-futuro.md` y `docs/convenciones.md`.
 - Pruebas: 120 JUnit en verde; las correcciones se comprobaron en emulador. El aviso se vio, pero la vibración no se puede comprobar en emulador.
-- Pendiente o siguiente paso: lo bloqueado requiere teléfonos. El APK final (`v1.0`) espera a M2; `v1.0-prueba1` es anterior a estas correcciones.
+- Pendiente o siguiente paso: lo bloqueado requiere teléfonos. El APK final (`v1.0`) espera a M2; `v1.0-prueba1` se actualizó con estas correcciones (`versionCode` 2) para instalarla en teléfonos.
 - Checkpoint afectado: CP0 y CP3, parciales.
 
 ### 2026-11-07 · T2.15, APK de prueba · Iker (+ IA: Claude Code)
