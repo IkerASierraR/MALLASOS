@@ -26,6 +26,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import pe.upt.mallasos.data.datastore.SettingsStore
 import pe.upt.mallasos.log.EventLogger
 import pe.upt.mallasos.log.Events
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -69,7 +70,7 @@ class WifiDirectManager(
     private var receiverRegistered = false
 
     /** Evita repetir `PEER_FOUND` dentro de un mismo ciclo de búsqueda. */
-    private val peersThisCycle = mutableSetOf<String>()
+    private val peersThisCycle = ConcurrentHashMap.newKeySet<String>()
 
     /** Distingue un cierre pedido (`SESSION_END`) de un enlace caído (`LINK_LOST`). */
     @Volatile
@@ -112,7 +113,9 @@ class WifiDirectManager(
                 addAction(WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION)
                 addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION)
             },
-            ContextCompat.RECEIVER_NOT_EXPORTED,
+            // Son difusiones protegidas: solo las envía el sistema. Con NOT_EXPORTED, las versiones
+            // anteriores a API 33 descartan el estado inicial, que llega como difusión sticky.
+            ContextCompat.RECEIVER_EXPORTED,
         )
         receiverRegistered = true
     }
