@@ -28,7 +28,7 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | --- | --- | --- | --- |
 | 0. Preparación | T0.1 – T0.6 | 🔄 | T0.1 y T0.2 hechas; faltan T0.3 a T0.6 |
 | 1. Base de la app | T1.1 – T1.12 | 🔄 | Hechas T1.2, T1.3, T1.10 y T1.11; T1.1 a la espera de T0.5; T1.4, T1.5 y T1.7 escritas, sin probar en teléfonos; T1.6 y T1.8 parciales |
-| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 hecha; T2.7 y T2.8 escritas, sin probar en teléfonos; T2.4 parcial (descarta duplicados, sin `ACK_HOP`); T2.10 parcial (solo Cola) |
+| 2. DTN y prioridad | T2.1 – T2.16 | 🔄 | T2.1 hecha; T2.2 a T2.9 escritas, sin probar en teléfonos; T2.10 parcial (solo Cola); faltan T2.10 a T2.16 y D1 |
 | 3. Ensayos | T3.1 – T3.7 | ⬜ | E5 puede empezar ya (fuera de la app) |
 | 4. Cierre | T4.1 – T4.6 | ⬜ | Entrega: 18 dic |
 
@@ -109,7 +109,12 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 | 7 nov | Del diseño de Stitch se omiten LoRa, dBm y Ed25519, y el rojo es `#C62828` | Quedan fuera del MVP o contradicen `design.md` |
 | 7 nov | `MallaService` retiene un `PARTIAL_WAKE_LOCK` mientras está activo (permiso `WAKE_LOCK`, no listado en `plan.md`) | Criterio 7 de `spec.md`: el intercambio debe seguir con la pantalla apagada |
 | 7 nov | Los fallos de sesión se registran como `LINK_LOST` con `extra=session:<causa>` | No hay evento propio y el CSV no admite nombres nuevos sin decisión |
-| 7 nov | El fin de la cola se señala con un medio cierre TCP (`shutdownOutput`), sin tipo de mensaje nuevo | No cambia el formato de `plan.md` §4 y `SUMMARY` sigue siendo opcional |
+| 7 nov | **Por validar con el equipo:** el fin de la cola se señala con un `SUMMARY` sin contenido; reemplaza al medio cierre TCP usado en T2.8 | Quien vació su cola debe seguir enviando ACK, así que hace falta una señal dentro del canal. La cabecera no cambia, y un `SUMMARY` con contenido queda libre para la mejora P2 |
+| 7 nov | La sesión termina cuando se envió y se recibió ese `SUMMARY`; cada lado lo envía tras recibir los ACK de su cola | Así ningún ACK queda sin respuesta al cerrar |
+| 7 nov | Si un mensaje agota sus 3 reintentos, el resto de la cola espera al próximo contacto | Con 19 s por mensaje, seguir agotaría la sesión de 30 s en un enlace que ya no responde |
+| 7 nov | El ACK final se envía antes que el ACK salto del SOS, sin esperar confirmación, y además queda en la cola del Puesto | Quien espera el ACK salto no puede cerrar antes de recibirlo, y la copia en cola llega a quien lleve copias del SOS |
+| 7 nov | `readTimeoutMs` sube de 5 a 10 s | La pausa entre reintentos llega a 7 s y no debe parecer un enlace caído |
+| 7 nov | Al llenarse la cola, los ACK propios se descartan después de los ajenos | `plan.md` no los ordena; preservan la purga de copias |
 | 7 nov | Un mensaje recibido se guarda como `CARRIED`, con `isOwn=false` | Es lo que muestra "En tránsito" en la pestaña Llevando; `PENDING` queda para lo que espera su salto (T2.2) |
 | 7 nov | No se devuelve un mensaje a su origen ni a quien lo entregó | Evita reenvíos inútiles; el receptor los descartaría como duplicados |
 | 7 nov | Un SOS mal formado corta la sesión (`LINK_LOST`, `extra=session:malformed`) sin guardarse | Se reutiliza el tratamiento del HELLO; no hay evento propio y es un caso anómalo |
@@ -133,6 +138,16 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada
 - Pendiente o siguiente paso:
 - Checkpoint afectado:
 ```
+
+### 2026-11-07 · T2.2 a T2.6, T2.9 · Iker (+ IA: Claude Code)
+
+- Hecho: ACK salto a salto con esperas de 3 s y reintentos tras 1, 2 y 4 s; modo básico sin espera ni reintentos; respuesta a duplicados; ACK final automático, propagación y purga con lápida; `CLOCK_OFFSET` en cada HELLO; `TtlSweeper` cada 60 s (vencimiento, lápidas y límite de 500). Solo una corrutina escribe en el socket, y la lectura nunca se bloquea al escribir. `insertIfNew` ya no aborta si la lápida se purgó y la fila sigue existiendo. El contador de la notificación solo cuenta SOS y normales.
+- Archivos tocados: `app/.../dtn/`, `p2p/`, `service/MallaService.kt`, `data/db/Daos.kt`, `log/EventLogger.kt`, `AppContainer.kt`, `memoria/plan.md`, `CONTINUAR.txt`.
+- Pruebas: 95 JUnit en verde; lint sin errores. Con TCP real en localhost: reintentos, modo básico, A→D, A→B→D con purga y estado Entregado en A. Las consultas de `MessageDao` compilan con Room pero siguen sin ejecutarse: no hay pruebas instrumentadas y añadirlas requiere una dependencia nueva.
+- `DtnPolicy` no es una clase propia: el modo se resuelve en `MessageExchange.forward`.
+- Cada contacto reenvía a cada vecino lo que siga en cola, aunque ya lo tenga (la mejora P2 `SUMMARY` lo evitaría).
+- Pendiente o siguiente paso: probar en dos teléfonos (M1); Panel del Puesto y Detalle (T2.10), Vecinos (T2.11), Configuración oculta (T2.12), `TrafficGenerator` (T2.13), `CsvExporter` (T2.14) y D1 (T2.15).
+- Checkpoint afectado: CP1 y CP3, sin completar.
 
 ### 2026-11-07 · T2.8 · Iker (+ IA: Claude Code)
 
