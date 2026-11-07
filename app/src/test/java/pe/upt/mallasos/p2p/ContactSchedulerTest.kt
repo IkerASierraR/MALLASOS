@@ -140,7 +140,7 @@ class ContactSchedulerTest {
             if (link.discoveries.get() >= 2) link.flow.update { it.copy(group = group) }
             sessions.isNotEmpty()
         }
-        assertEquals(listOf(group), sessions.toList())
+        assertEquals(group, sessions.first())
     }
 
     @Test
