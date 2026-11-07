@@ -2,12 +2,15 @@ package pe.upt.mallasos.ui.screens
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -18,6 +21,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -29,6 +37,8 @@ import pe.upt.mallasos.R
 import pe.upt.mallasos.data.datastore.Identity
 import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.formatNodeId
+import pe.upt.mallasos.domain.SECRET_TAPS
+import pe.upt.mallasos.domain.secretTapsHint
 import pe.upt.mallasos.ui.components.IconBubble
 import pe.upt.mallasos.ui.components.MallaCard
 import pe.upt.mallasos.ui.components.Pill
@@ -46,8 +56,14 @@ fun HomeScreen(
     visibleMessages: Int,
     onSos: () -> Unit,
     onMessages: () -> Unit,
+    onNeighbors: () -> Unit,
+    onPost: () -> Unit,
+    onSecretSettings: () -> Unit,
+    testMode: Boolean,
+    panelPending: Int,
     onReactivate: () -> Unit,
 ) {
+    var taps by rememberSaveable { mutableIntStateOf(0) }
     Column(
         Modifier
             .fillMaxSize()
@@ -72,6 +88,9 @@ fun HomeScreen(
             )
         }
         ServiceBanner(network, queued, onReactivate)
+        if (testMode) {
+            Pill("Modo pruebas activo", R.drawable.ic_tune, malla.neutral, malla.neutralContainer)
+        }
         SosButton(
             onClick = onSos,
             minHeight = 168.dp,
@@ -95,21 +114,42 @@ fun HomeScreen(
             icon = R.drawable.ic_wifi_tethering,
             title = "Vecinos",
             subtitle = if (network.active) "${network.neighbors} cerca ahora" else "Sin búsqueda activa",
+            onClick = onNeighbors,
         )
         if (identity.mode == NodeMode.PUESTO) {
             ShortcutTile(
                 icon = R.drawable.ic_apartment,
                 title = "Panel del Puesto",
-                subtitle = "Disponible próximamente",
+                subtitle = if (panelPending == 0) "Sin SOS por atender" else "$panelPending sin atender",
+                onClick = onPost,
             )
         }
         Spacer(Modifier.weight(1f))
+        // Siempre ocupa su línea: si el pie se moviera, los toques siguientes caerían fuera.
+        Text(
+            secretTapsHint(taps).orEmpty(),
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Text(
             "MALLA-SOS v1.0 · ID ${formatNodeId(identity.nodeId)}",
             style = TechnicalText,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    taps++
+                    if (taps >= SECRET_TAPS) {
+                        taps = 0
+                        onSecretSettings()
+                    }
+                },
         )
     }
 }

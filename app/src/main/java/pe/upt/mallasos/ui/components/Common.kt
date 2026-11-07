@@ -23,6 +23,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -68,6 +71,29 @@ fun MallaTopBar(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
     )
+}
+
+/** Selector de dos a cuatro opciones de la configuración oculta (`design.md` §3). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SegmentedToggle(
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SingleChoiceSegmentedButtonRow(modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, label ->
+            SegmentedButton(
+                selected = index == selected,
+                onClick = { onSelect(index) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                label = {
+                    Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 3)
+                },
+            )
+        }
+    }
 }
 
 @Composable

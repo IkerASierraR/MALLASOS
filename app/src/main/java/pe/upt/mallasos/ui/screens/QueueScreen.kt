@@ -47,7 +47,7 @@ import pe.upt.mallasos.ui.components.SosBadge
 import pe.upt.mallasos.ui.components.StatusChip
 import pe.upt.mallasos.ui.theme.malla
 
-private val MessageState.chip: ChipStatus
+val MessageState.chip: ChipStatus
     get() = when (this) {
         MessageState.PENDING -> ChipStatus.Pending
         MessageState.CARRIED -> ChipStatus.Carried
@@ -70,7 +70,11 @@ fun timeAgo(fromMs: Long, nowMs: Long = System.currentTimeMillis()): String {
  * [ordered] ya viene en el orden de salida de la cola; los mensajes cerrados van al final.
  */
 @Composable
-fun QueueScreen(ordered: List<MessageEntity>, onBack: () -> Unit) {
+fun QueueScreen(
+    ordered: List<MessageEntity>,
+    onOpen: (String) -> Unit,
+    onBack: () -> Unit,
+) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var filter by rememberSaveable { mutableStateOf<MessageState?>(null) }
     val forTab = ordered.filter { it.isOwn == (tab == 0) }
@@ -131,7 +135,7 @@ fun QueueScreen(ordered: List<MessageEntity>, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(visible, key = { it.uid }) { message ->
-                    MessageCard(message, isNext = message.uid == nextUid)
+                    MessageCard(message, isNext = message.uid == nextUid, onClick = { onOpen(message.uid) })
                 }
             }
         }
@@ -139,7 +143,7 @@ fun QueueScreen(ordered: List<MessageEntity>, onBack: () -> Unit) {
 }
 
 @Composable
-private fun MessageCard(message: MessageEntity, isNext: Boolean) {
+private fun MessageCard(message: MessageEntity, isNext: Boolean, onClick: () -> Unit) {
     val sos: SosPayload? = if (message.type == MessageType.SOS.code) {
         PayloadCodec.decodeSos(message.payload)
     } else {
@@ -147,6 +151,7 @@ private fun MessageCard(message: MessageEntity, isNext: Boolean) {
     }
     MallaCard(
         Modifier.fillMaxWidth(),
+        onClick = onClick,
         border = when {
             !isNext -> malla.cardBorder
             sos != null -> malla.sos
