@@ -27,3 +27,8 @@ Thumbs.db
 
 # Diseño: las capturas viven en docs/design
 memoria/diseño/
+
+# Datos de campo: contienen alias y ubicaciones (plan.md §8)
+datos/
+*.csv
+!analisis/**/*.csv
