@@ -4,6 +4,8 @@
 > Documentos relacionados: `plan.md` (cómo se construye), `tasks.md` (qué se hace y quién), `progress.md` (avance) y `design.md` (pantallas para Stitch).
 > Curso SI-882 Redes y Comunicación de Datos I, UPT, 2026-II. Entrega final: **18 dic 2026**.
 
+> **Cambio de concepto (24 nov):** la app pasa a ser la malla de teléfonos de la red híbrida del Proyecto Integrador. Hay tres roles (Herido, Ayudante y Rescatista) y el Rescatista es la pasarela hacia LoRa: envía los reportes por Bluetooth LE a una placa ESP32 + LoRa, y otra placa los recibe en el puesto, conectada por serial a una computadora. El formato de los datos LoRa queda pendiente. Las secciones 3 y 5 ya lo reflejan; el resto se irá ajustando.
+
 ---
 
 ## 1. Visión
@@ -26,26 +28,32 @@ La app es además el **instrumento de medición** del proyecto: registra cada ev
 
 ## 3. Usuarios y roles
 
-Todos los teléfonos ejecutan la misma app. Hay **dos modos**, que se eligen en la bienvenida:
+Todos los teléfonos ejecutan la misma app. Hay **tres roles**, que se eligen en la bienvenida:
 
-| Modo | Quién lo usa | Puede |
-| --- | --- | --- |
-| **Normal** | Persona afectada (A) y voluntarios (B, C) | Crear SOS; llevar y reenviar mensajes de otros; ver su cola; ver vecinos; recibir SOS dirigidos a su propio ID y confirmarlos con ACK final |
-| **Puesto** | Puesto de coordinación (D) | Todo lo del modo Normal, más: **recibir los SOS dirigidos a "cualquier puesto"** (`FFFFFFFF`), enviar automáticamente su ACK final, ver el Panel del Puesto y marcar SOS como "Atendido" |
+| Rol | Quién lo usa | Puede | Group Owner |
+| --- | --- | --- | --- |
+| **Herido** | Persona afectada (A) | Crear SOS; llevar y reenviar mensajes de otros; ver su cola y sus vecinos | Intent elegible de 0 a 3 (por defecto 0): casi nunca sostiene el grupo y ahorra batería |
+| **Ayudante** | Voluntarios que buscan personas (B, C) | Lo mismo que el Herido | Intent elegible de 0 a 15 (por defecto 7) |
+| **Rescatista** | Rescatista o puesto de avanzada (D) | Todo lo anterior, más: **recibir los SOS dirigidos a "cualquier rescatista"** (`FFFFFFFF`), enviar automáticamente su ACK final, ver el Panel del Rescatista, marcar SOS como "Atendido" y **enviar reportes por LoRa** al puesto | Intent 15 fijo. **Crea su propio grupo** y lo mantiene encendido: los demás se unen a él y puede atender a varios a la vez |
+
+Herido y Ayudante siguen el ciclo de contactos (buscar, conectar, intercambiar y salir) y prefieren a los grupos ya abiertos, es decir, a los Rescatistas. El Ayudante y el Rescatista conservan los códigos de HELLO de los antiguos modos Normal (0) y Puesto (1).
 
 **Equipo de pruebas:** no es un rol de la app. Cualquier integrante entra a la **configuración oculta** para cambiar parámetros de los ensayos y exportar el CSV.
 
 ### Permisos por modo
 
-| Acción | Normal | Puesto |
-| --- | :-: | :-: |
-| Crear y enviar SOS | ✓ | ✓ |
-| Llevar y reenviar mensajes ajenos | ✓ | ✓ |
-| Enviar ACK salto a salto | ✓ | ✓ |
-| Enviar ACK final a un SOS dirigido a su ID | ✓ | ✓ |
-| Enviar ACK final a un SOS dirigido a `FFFFFFFF` | ✗ | ✓ |
-| Ver el Panel del Puesto y marcar "Atendido" | ✗ | ✓ |
-| Entrar a la configuración oculta | ✓ | ✓ |
+| Acción | Herido | Ayudante | Rescatista |
+| --- | :-: | :-: | :-: |
+| Crear y enviar SOS | ✓ | ✓ | ✓ |
+| Llevar y reenviar mensajes ajenos | ✓ | ✓ | ✓ |
+| Enviar ACK salto a salto | ✓ | ✓ | ✓ |
+| Enviar ACK final a un SOS dirigido a su ID | ✓ | ✓ | ✓ |
+| Enviar ACK final a un SOS dirigido a `FFFFFFFF` | ✗ | ✗ | ✓ |
+| Ver el Panel del Rescatista y marcar "Atendido" | ✗ | ✗ | ✓ |
+| Crear su propio grupo y atender a varios a la vez | ✗ | ✗ | ✓ |
+| Enviar reportes por LoRa (pantalla "Conexión LoRa") | ✗ | ✗ | ✓ |
+| Ajustar su intent de Group Owner (pantalla Vecinos) | 0–3 | 0–15 | fijo en 15 |
+| Entrar a la configuración oculta | ✓ | ✓ | ✓ |
 
 ## 4. Flujo principal (camino mínimo)
 

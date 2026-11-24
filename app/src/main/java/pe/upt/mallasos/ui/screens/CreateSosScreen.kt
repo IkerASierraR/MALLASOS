@@ -226,7 +226,7 @@ private fun EmergencyButton(
 }
 
 @Composable
-private fun PeopleCounter(people: Int, onChange: (Int) -> Unit) {
+internal fun PeopleCounter(people: Int, onChange: (Int) -> Unit) {
     MallaCard(Modifier.fillMaxWidth(), container = MaterialTheme.colorScheme.surfaceVariant) {
         Row(
             Modifier.padding(8.dp),
@@ -303,7 +303,7 @@ private fun DestinationSelector(
             )
             Column(Modifier.weight(1f)) {
                 Text(
-                    selectedNode?.alias ?: "Cualquier puesto",
+                    selectedNode?.alias ?: "Cualquier rescatista",
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
@@ -322,7 +322,7 @@ private fun DestinationSelector(
             title = { Text("Destino") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    DestinationOption("Cualquier puesto", null) {
+                    DestinationOption("Cualquier rescatista", null) {
                         onSelect(ANY_POST)
                         picking = false
                     }

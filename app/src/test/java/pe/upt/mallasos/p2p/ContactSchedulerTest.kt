@@ -2,6 +2,7 @@ package pe.upt.mallasos.p2p
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,17 @@ class ContactSchedulerTest {
         var formsGroup: P2pGroup? = null
         var failConnect = false
         var failDiscover = false
+        val created = AtomicInteger()
+        val announces = AtomicInteger()
+
+        override suspend fun createGroup() {
+            created.incrementAndGet()
+            flow.update { it.copy(group = P2pGroup(isGroupOwner = true, ownerAddress = "192.168.49.1")) }
+        }
+
+        override suspend fun announce() {
+            announces.incrementAndGet()
+        }
 
         override suspend fun discover() {
             discoveries.incrementAndGet()
@@ -65,6 +77,21 @@ class ContactSchedulerTest {
 
     private fun scheduler(link: P2pLink, session: ContactSession = recording) =
         ContactScheduler(link, session, timings, clock::get)
+
+    private val hosting = AtomicInteger()
+
+    private fun rescuer(link: P2pLink, mode: MutableStateFlow<Boolean> = MutableStateFlow(true)) =
+        ContactScheduler(
+            link,
+            recording,
+            timings,
+            clock::get,
+            hostMode = mode,
+            host = HostSession {
+                hosting.incrementAndGet()
+                awaitCancellation()
+            },
+        )
 
     /** Ejecuta el planificador hasta que se cumple [done]. */
     private fun running(scheduler: ContactScheduler, done: suspend () -> Boolean) = runBlocking {
@@ -213,5 +240,69 @@ class ContactSchedulerTest {
         val contacted = mapOf(ana.address to 1_000L)
         assertNull(selectPeer(listOf(ana), contacted, 60_999, 60_000))
         assertEquals(ana, selectPeer(listOf(ana), contacted, 61_000, 60_000))
+    }
+
+    @Test
+    fun `los grupos abiertos se eligen antes que los demas vecinos`() {
+        val rescatista = P2pPeer("dd:dd", "Rescate", PEER_STATUS_AVAILABLE, isGroupOwner = true)
+        assertEquals(rescatista, selectPeer(listOf(ana, rescatista, beto), emptyMap(), 0, 60_000))
+    }
+
+    @Test
+    fun `el rescatista crea su grupo, lo atiende y se anuncia sin llamar a nadie`() {
+        val link = FakeLink(P2pState(enabled = true, peers = listOf(ana, beto)))
+        var owner = false
+        running(rescuer(link)) {
+            owner = link.flow.value.group?.isGroupOwner == true
+            hosting.get() > 0 && link.announces.get() >= 2
+        }
+
+        assertTrue(owner)
+        assertEquals(1, link.created.get())
+        assertTrue(link.connects.isEmpty())
+        assertTrue(sessions.isEmpty())
+        // Al detener el servicio cierra su grupo.
+        assertNull(link.flow.value.group)
+    }
+
+    @Test
+    fun `el rescatista no deshace su grupo tras cada contacto`() {
+        val link = FakeLink(P2pState(enabled = true))
+        var disconnectsWhileHosting = -1
+        running(rescuer(link)) {
+            disconnectsWhileHosting = link.disconnects.get()
+            link.announces.get() >= 4
+        }
+        assertEquals(1, link.created.get())
+        assertEquals(0, disconnectsWhileHosting)
+    }
+
+    @Test
+    fun `si pierde el grupo lo vuelve a crear`() {
+        val link = FakeLink(P2pState(enabled = true))
+        running(rescuer(link)) {
+            if (link.created.get() == 1 && link.flow.value.group != null) {
+                link.flow.update { it.copy(group = null) }
+            }
+            link.created.get() >= 2
+        }
+    }
+
+    @Test
+    fun `si era cliente de otro grupo sale antes de crear el suyo`() {
+        val link = FakeLink(P2pState(enabled = true, group = group))
+        running(rescuer(link)) { link.created.get() > 0 }
+        assertTrue(link.disconnects.get() >= 1)
+    }
+
+    @Test
+    fun `al dejar de ser rescatista cierra el grupo y vuelve a buscar`() {
+        val mode = MutableStateFlow(true)
+        val link = FakeLink(P2pState(enabled = true))
+        running(rescuer(link, mode)) {
+            if (link.flow.value.group != null && mode.value) mode.value = false
+            !mode.value && link.discoveries.get() > 0
+        }
+        assertNull(link.flow.value.group)
     }
 }

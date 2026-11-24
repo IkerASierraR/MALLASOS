@@ -51,7 +51,6 @@ import pe.upt.mallasos.ui.components.SectionTitle
 import pe.upt.mallasos.ui.components.SegmentedToggle
 import pe.upt.mallasos.ui.theme.TechnicalText
 
-private val GO_INTENTS = listOf("0", "7", "15", "AUTO")
 
 @Composable
 fun TestSettingsScreen(
@@ -130,15 +129,6 @@ fun TestSettingsScreen(
                             val mode = QueueMode.entries[index]
                             val name = if (mode == QueueMode.FIFO) "orden de llegada" else "prioridad"
                             apply("cola por $name") { it.copy(queueMode = mode) }
-                        },
-                    )
-                }
-                Block("Intent de Group Owner") {
-                    SegmentedToggle(
-                        options = listOf("0", "7", "15", "Auto"),
-                        selected = GO_INTENTS.indexOf(config.goIntent).takeIf { it >= 0 } ?: GO_INTENTS.lastIndex,
-                        onSelect = { index ->
-                            apply("intent ${GO_INTENTS[index]}") { it.copy(goIntent = GO_INTENTS[index]) }
                         },
                     )
                 }
@@ -238,10 +228,12 @@ fun TestSettingsScreen(
     askMode?.let { mode ->
         Confirm(
             title = "¿Cambiar a modo ${mode.label}?",
-            text = if (mode == NodeMode.PUESTO) {
-                "Este teléfono confirmará los SOS dirigidos a cualquier puesto."
+            text = if (mode == NodeMode.RESCATISTA) {
+                "Este teléfono creará su propio grupo, confirmará los SOS dirigidos a cualquier " +
+                    "rescatista y podrá enviarlos por LoRa."
             } else {
-                "Este teléfono dejará de confirmar los SOS dirigidos a cualquier puesto."
+                "${modeDescription(mode)} Dejará de confirmar los SOS dirigidos a cualquier " +
+                    "rescatista."
             },
             confirm = "Cambiar",
             onConfirm = {

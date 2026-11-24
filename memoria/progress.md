@@ -136,6 +136,11 @@ Estados: ⬜ pendiente · 🔄 en curso · ✅ hecha · ⛔ bloqueada por teléf
 | Fecha | Decisión | Motivo |
 | --- | --- | --- |
 | 7 nov | Todos los teléfonos son iguales; solo el modo Puesto confirma SOS dirigidos a `FFFFFFFF` | Simplicidad y fidelidad al escenario del albergue |
+| 24 nov | Tres roles: Herido, Ayudante y Rescatista (antes Normal y Puesto). Ayudante y Rescatista conservan los códigos 0 y 1 del HELLO y los modos guardados se traducen solos | Nuevo concepto del Proyecto Integrador; compatibilidad con los teléfonos que ya tienen la versión de prueba |
+| 24 nov | Intent de Group Owner por rol: Rescatista 15 fijo, Ayudante 0–15, Herido 0–3. Se ajusta en Vecinos y sale de la configuración oculta | El Herido no debe sostener el grupo; el GO es un ajuste del rol, no del ensayo |
+| 24 nov | El Rescatista crea su propio grupo (`createGroup`) y lo mantiene; su servidor acepta varias sesiones en paralelo. En API 29+ usa la red fija `DIRECT-MS-Rescate` para que nadie acepte invitaciones a mano | El intent 15 solo es una preferencia negociable y dos rescatistas con 15 no podrían conectarse; el Rescatista es un punto fijo que recibe a muchos |
+| 24 nov | Pantalla "Conexión LoRa" con cola de reportes en memoria detrás de la interfaz `LoraLink`; `PendingBoardLink` deja todo en espera hasta que exista la placa | La placa ESP32 + LoRa (Bluetooth LE) aún se está fabricando y el formato de los datos LoRa queda para después |
+| 24 nov | La columna `known_nodes.isPuesto` conserva su nombre (en Kotlin `isRescuer`) | Evita una migración de Room |
 | 7 nov | El ACK final es automático al recibir; "Atendido" es solo visual | Mediciones H1 y E4 independientes del operador |
 | 7 nov | Mensajes normales solo como tráfico de prueba | El MVP se centra en el SOS |
 | 7 nov | Servicio en primer plano | El voluntario lleva los mensajes con el teléfono en el bolsillo |

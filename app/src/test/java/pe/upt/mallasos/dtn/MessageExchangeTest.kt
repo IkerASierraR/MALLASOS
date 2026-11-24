@@ -44,9 +44,9 @@ import java.util.concurrent.atomic.AtomicInteger
 class MessageExchangeTest {
 
     private val now = 1_794_000_000_000L
-    private val ana = LocalNode(0x0A0A0A0A, "Ana", NodeMode.NORMAL)
-    private val beto = LocalNode(0x0B0B0B0B, "Beto", NodeMode.NORMAL)
-    private val puesto = LocalNode(0x0D0D0D0D, "Puesto", NodeMode.PUESTO)
+    private val ana = LocalNode(0x0A0A0A0A, "Ana", NodeMode.AYUDANTE)
+    private val beto = LocalNode(0x0B0B0B0B, "Beto", NodeMode.AYUDANTE)
+    private val puesto = LocalNode(0x0D0D0D0D, "Puesto", NodeMode.RESCATISTA)
     private val fast = AckTimings(ackTimeoutMs = 100, retryDelaysMs = listOf(5, 10, 20))
 
     private val sosBytes = PayloadCodec.encodeSos(
@@ -415,7 +415,7 @@ class MessageExchangeTest {
     }
 
     @Test
-    fun `el modo Normal no confirma lo dirigido a cualquier puesto`() {
+    fun `el modo Ayudante no confirma lo dirigido a cualquier rescatista`() {
         val a = Phone(ana)
         val b = Phone(beto)
         val sos = a.create(seq = 1)
@@ -523,7 +523,7 @@ class MessageExchangeTest {
     fun `recorre A B C D por contactos sucesivos y borra las copias`() {
         val a = Phone(ana)
         val b = Phone(beto)
-        val c = Phone(LocalNode(0x0C0C0C0C, "Cata", NodeMode.NORMAL))
+        val c = Phone(LocalNode(0x0C0C0C0C, "Cata", NodeMode.AYUDANTE))
         val d = Phone(puesto)
         val sos = a.create(seq = 1)
 

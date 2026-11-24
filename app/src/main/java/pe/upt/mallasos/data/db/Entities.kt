@@ -1,5 +1,6 @@
 package pe.upt.mallasos.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -38,7 +39,8 @@ data class SeenIdEntity(
 data class KnownNodeEntity(
     @PrimaryKey val nodeId: Int,
     val alias: String,
-    val isPuesto: Boolean,
+    /** La columna conserva su nombre anterior para no migrar la base de datos. */
+    @ColumnInfo(name = "isPuesto") val isRescuer: Boolean,
     val lastSeenAt: Long,
     val lastRssiOrDistanceNote: String? = null,
     val clockOffsetMs: Long = 0,

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager.FEATURE_WIFI_DIRECT
+import android.net.MacAddress
 import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pDeviceList
@@ -15,6 +16,9 @@ import android.os.Build
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,14 +27,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.SettingsStore
+import pe.upt.mallasos.data.datastore.goIntentFor
 import pe.upt.mallasos.log.EventLogger
 import pe.upt.mallasos.log.Events
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
-data class P2pPeer(val address: String, val name: String, val status: Int)
+/** [isGroupOwner] indica que el par ya sostiene un grupo, como el de un Rescatista. */
+data class P2pPeer(
+    val address: String,
+    val name: String,
+    val status: Int,
+    val isGroupOwner: Boolean = false,
+)
 
 /** [ownerAddress] es la IP del Group Owner, normalmente `192.168.49.1`. */
 data class P2pGroup(val isGroupOwner: Boolean, val ownerAddress: String)
@@ -46,11 +55,13 @@ data class P2pState(
 class P2pActionException(val action: String, val reason: Int) :
     Exception("$action rechazado (motivo $reason)")
 
-private const val AUTO_INTENT = -1
-
-/** `WifiP2pConfig.groupOwnerIntent` a partir de la configuración: 0, 7, 15 o automático. */
-fun groupOwnerIntentValue(setting: String): Int =
-    setting.toIntOrNull()?.takeIf { it in 0..15 } ?: AUTO_INTENT
+/**
+ * Red fija del grupo del Rescatista (API 29+). Con nombre y clave conocidos, los demás se unen sin
+ * que nadie acepte una invitación en pantalla. No es un secreto: el enlace solo transporta
+ * mensajes que la app ya valida, y la autenticación queda para E5.
+ */
+const val RESCUE_NETWORK_NAME = "DIRECT-MS-Rescate"
+const val RESCUE_PASSPHRASE = "mallasos-rescate"
 
 /**
  * Envuelve `WifiP2pManager`. Registra T0 a T3 (`DISCOVERY_START`, `PEER_FOUND`, `CONNECT_REQUEST`
@@ -68,6 +79,13 @@ class WifiDirectManager(
         if (supported) context.getSystemService(WifiP2pManager::class.java) else null
     private var channel: WifiP2pManager.Channel? = null
     private var receiverRegistered = false
+
+    /** Grupos ajenos que no aceptaron la red fija: se les vuelve a llamar con el método clásico. */
+    private val classicOnly = ConcurrentHashMap.newKeySet<String>()
+
+    /** Último par llamado con la red fija; si su grupo no se forma, pasa a [classicOnly]. */
+    @Volatile
+    private var lastFixedAttempt: String? = null
 
     /** Evita repetir `PEER_FOUND` dentro de un mismo ciclo de búsqueda. */
     private val peersThisCycle = ConcurrentHashMap.newKeySet<String>()
@@ -136,6 +154,37 @@ class WifiDirectManager(
         }
     }
 
+    /** Mantiene visible al Group Owner sin registrar un nuevo ciclo T0 en el CSV. */
+    override suspend fun announce() {
+        action("discoverPeers") { manager, channel, listener ->
+            manager.discoverPeers(channel, listener)
+        }
+    }
+
+    /**
+     * El Rescatista forma su propio grupo sin negociar: siempre queda como Group Owner. Desde API 29
+     * usa la red fija; antes, Android elige nombre y clave y los demás entran con la invitación
+     * clásica.
+     */
+    override suspend fun createGroup() {
+        logger.log(Events.CONNECT_REQUEST, extra = "createGroup")
+        if (Build.VERSION.SDK_INT >= 29) {
+            val config = WifiP2pConfig.Builder()
+                .setNetworkName(RESCUE_NETWORK_NAME)
+                .setPassphrase(RESCUE_PASSPHRASE)
+                .enablePersistentMode(false)
+                .setGroupOperatingBand(WifiP2pConfig.GROUP_OWNER_BAND_2GHZ)
+                .build()
+            action("createGroup") { manager, channel, listener ->
+                manager.createGroup(channel, config, listener)
+            }
+        } else {
+            action("createGroup") { manager, channel, listener ->
+                manager.createGroup(channel, listener)
+            }
+        }
+    }
+
     /** "Buscar ahora" de la pantalla Vecinos: un fallo solo significa esperar al ciclo siguiente. */
     fun searchNow() {
         scope.launch {
@@ -152,12 +201,25 @@ class WifiDirectManager(
      * orden: el grupo aparece después en `state` (T3).
      */
     override suspend fun connect(peer: P2pPeer) {
-        val intent = settings.testConfig.first().goIntent
-        val config = WifiP2pConfig().apply {
-            deviceAddress = peer.address
-            groupOwnerIntent = groupOwnerIntentValue(intent)
-            wps.setup = WpsInfo.PBC
+        val mode = settings.identity.first()?.mode ?: NodeMode.AYUDANTE
+        val intent = settings.testConfig.first().goIntentFor(mode)
+        val fixed = peer.isGroupOwner && Build.VERSION.SDK_INT >= 29 &&
+            peer.address !in classicOnly
+        val config = if (fixed) {
+            // Se une al grupo ya formado del Rescatista: no hay negociación ni intent.
+            WifiP2pConfig.Builder()
+                .setNetworkName(RESCUE_NETWORK_NAME)
+                .setPassphrase(RESCUE_PASSPHRASE)
+                .setDeviceAddress(MacAddress.fromString(peer.address))
+                .build()
+        } else {
+            WifiP2pConfig().apply {
+                deviceAddress = peer.address
+                groupOwnerIntent = intent
+                wps.setup = WpsInfo.PBC
+            }
         }
+        lastFixedAttempt = if (fixed) peer.address else null
         logger.log(Events.CONNECT_REQUEST, extra = peer.address)
         action("connect") { manager, channel, listener ->
             manager.connect(channel, config, listener)
@@ -167,6 +229,9 @@ class WifiDirectManager(
     /** Sale del grupo actual o cancela una conexión en curso. */
     override suspend fun disconnect() {
         if (_state.value.group == null) {
+            // La red fija no funcionó con ese grupo (otra app, o un Rescatista con Android 8 o 9).
+            lastFixedAttempt?.let(classicOnly::add)
+            lastFixedAttempt = null
             action("cancelConnect") { manager, channel, listener ->
                 manager.cancelConnect(channel, listener)
             }
@@ -184,7 +249,9 @@ class WifiDirectManager(
     }
 
     private fun onPeers(list: WifiP2pDeviceList) {
-        val peers = list.deviceList.map { P2pPeer(it.deviceAddress, it.deviceName, it.status) }
+        val peers = list.deviceList.map {
+            P2pPeer(it.deviceAddress, it.deviceName, it.status, it.isGroupOwner)
+        }
         _state.update { it.copy(peers = peers) }
         peers.filter { peersThisCycle.add(it.address) }.forEach { peer ->
             scope.launch { logger.log(Events.PEER_FOUND, extra = peer.address) }
@@ -193,6 +260,7 @@ class WifiDirectManager(
 
     private fun onConnection(info: WifiP2pInfo) {
         val previous = _state.value.group
+        if (info.groupFormed) lastFixedAttempt = null
         if (info.groupFormed && previous == null) {
             val group = P2pGroup(info.isGroupOwner, info.groupOwnerAddress.hostAddress.orEmpty())
             _state.update { it.copy(group = group) }

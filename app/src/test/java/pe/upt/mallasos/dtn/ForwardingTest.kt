@@ -18,8 +18,8 @@ class ForwardingTest {
 
     private val now = 10_000_000L
     private val hour = 3_600_000L
-    private val voluntario = RemoteNode(0x0B, "Beto", NodeMode.NORMAL, 0)
-    private val puesto = RemoteNode(0x0D, "Puesto", NodeMode.PUESTO, 0)
+    private val voluntario = RemoteNode(0x0B, "Beto", NodeMode.AYUDANTE, 0)
+    private val puesto = RemoteNode(0x0D, "Puesto", NodeMode.RESCATISTA, 0)
 
     private fun message(
         uid: String = "m",

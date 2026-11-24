@@ -14,20 +14,28 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import pe.upt.mallasos.R
+import pe.upt.mallasos.data.datastore.GoPolicy
+import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.formatNodeId
 import pe.upt.mallasos.data.db.KnownNodeEntity
 import pe.upt.mallasos.domain.LinkTimings
 import pe.upt.mallasos.p2p.P2pPeer
 import pe.upt.mallasos.p2p.P2pState
-import pe.upt.mallasos.p2p.groupOwnerIntentValue
 import pe.upt.mallasos.ui.components.IconBubble
 import pe.upt.mallasos.ui.components.MallaCard
 import pe.upt.mallasos.ui.components.MallaTopBar
@@ -51,7 +59,10 @@ fun NeighborsScreen(
     p2p: P2pState,
     serviceRunning: Boolean,
     locationEnabled: Boolean,
-    goIntent: String,
+    mode: NodeMode,
+    goIntent: Int,
+    onGoIntent: (Int) -> Unit,
+    connectedNow: Int,
     timings: LinkTimings?,
     knownNodes: List<KnownNodeEntity>,
     onSearch: () -> Unit,
@@ -81,14 +92,17 @@ fun NeighborsScreen(
             if (!locationEnabled) {
                 Warning("Ubicación del sistema apagada: muchos teléfonos no buscan pares sin ella")
             }
-            LinkCard(p2p, serviceRunning, goIntent)
+            LinkCard(p2p, serviceRunning, mode, connectedNow)
+            GoIntentCard(mode, goIntent, onGoIntent)
             TimingsCard(timings)
-            PrimaryButton(
-                "Buscar ahora",
-                onSearch,
-                enabled = p2p.supported && p2p.enabled,
-                icon = R.drawable.ic_wifi_tethering,
-            )
+            if (mode != NodeMode.RESCATISTA) {
+                PrimaryButton(
+                    "Buscar ahora",
+                    onSearch,
+                    enabled = p2p.supported && p2p.enabled,
+                    icon = R.drawable.ic_wifi_tethering,
+                )
+            }
             SectionTitle("Cerca ahora", trailing = p2p.peers.size.toString())
             if (p2p.peers.isEmpty()) {
                 Hint("Nadie cerca. Sigue buscando…")
@@ -138,31 +152,72 @@ private fun Warning(text: String, action: String? = null, onAction: () -> Unit =
 }
 
 @Composable
-private fun LinkCard(p2p: P2pState, serviceRunning: Boolean, goIntent: String) {
+private fun LinkCard(p2p: P2pState, serviceRunning: Boolean, mode: NodeMode, connectedNow: Int) {
     val group = p2p.group
+    val hosting = mode == NodeMode.RESCATISTA
     val state = when {
+        hosting && group?.isGroupOwner == true -> "Grupo propio activo"
+        hosting && serviceRunning && p2p.enabled -> "Creando grupo"
         group != null -> "Conectado"
         p2p.peers.any { it.status == 1 } -> "Conectando"
         serviceRunning && p2p.enabled -> "Buscando"
         else -> "Libre"
     }
-    val intent = groupOwnerIntentValue(goIntent).takeIf { it >= 0 }?.toString() ?: "Automático"
     MallaCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            TechRow("Rol", mode.label)
             TechRow("Estado", state)
-            if (group != null) {
+            if (hosting) {
+                TechRow("Intercambiando ahora", connectedNow.toString())
+            }
+            if (group != null && !hosting) {
                 val owner = p2p.peers.firstOrNull { it.status == 0 }?.name.orEmpty()
                 TechRow(
-                    "Rol",
+                    "En el grupo",
                     when {
                         group.isGroupOwner -> "Este teléfono es Group Owner"
                         owner.isBlank() -> "Cliente"
                         else -> "Cliente de $owner"
                     },
                 )
-                TechRow("IP del Group Owner", group.ownerAddress)
             }
-            TechRow("Intent de Group Owner", intent)
+            if (group != null) TechRow("IP del Group Owner", group.ownerAddress)
+        }
+    }
+}
+
+/**
+ * Preferencia de ser Group Owner. El Rescatista no la elige: crea su grupo. Herido y Ayudante la
+ * ajustan dentro del rango de su rol; vale para las conexiones siguientes.
+ */
+@Composable
+private fun GoIntentCard(mode: NodeMode, value: Int, onChange: (Int) -> Unit) {
+    val range = GoPolicy.range(mode)
+    MallaCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            TechRow("Intent de Group Owner", "$value de ${GoPolicy.MAX}")
+            if (!GoPolicy.isEditable(mode)) {
+                Hint("Como Rescatista, este teléfono crea su propio grupo y siempre es el centro.")
+                return@Column
+            }
+            var draft by remember(value) { mutableFloatStateOf(value.toFloat()) }
+            Slider(
+                value = draft,
+                onValueChange = { draft = it },
+                onValueChangeFinished = { onChange(draft.toInt()) },
+                valueRange = range.first.toFloat()..range.last.toFloat(),
+                steps = (range.last - range.first - 1).coerceAtLeast(0),
+                modifier = Modifier.semantics { stateDescription = "${draft.toInt()}" },
+            )
+            Hint(
+                if (mode == NodeMode.HERIDO) {
+                    "Como Herido va de ${range.first} a ${range.last}: así tu teléfono casi nunca " +
+                        "sostiene el grupo y ahorra batería."
+                } else {
+                    "Más alto: más probable que este teléfono sea el centro del grupo. Más bajo: " +
+                        "se une al de otro."
+                },
+            )
         }
     }
 }
@@ -198,7 +253,7 @@ private fun PeerRow(peer: P2pPeer) {
     NodeRow(
         icon = if (peer.status == 0) R.drawable.ic_router else R.drawable.ic_wifi_tethering,
         title = peer.name.ifBlank { "Sin nombre" },
-        detail = peer.address,
+        detail = if (peer.isGroupOwner) "${peer.address} · grupo abierto" else peer.address,
         status = peerStatusLabel(peer.status),
     )
 }
@@ -206,10 +261,10 @@ private fun PeerRow(peer: P2pPeer) {
 @Composable
 private fun KnownRow(node: KnownNodeEntity) {
     NodeRow(
-        icon = if (node.isPuesto) R.drawable.ic_apartment else R.drawable.ic_person,
+        icon = if (node.isRescuer) R.drawable.ic_apartment else R.drawable.ic_person,
         title = node.alias,
         detail = formatNodeId(node.nodeId),
-        status = "${if (node.isPuesto) "Puesto" else "Normal"} · visto ${timeAgo(node.lastSeenAt)}",
+        status = "${if (node.isRescuer) "Rescatista" else "Persona"} · visto ${timeAgo(node.lastSeenAt)}",
     )
 }
 

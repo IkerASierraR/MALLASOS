@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,11 +16,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import pe.upt.mallasos.R
 import pe.upt.mallasos.codec.ANY_POST
 import pe.upt.mallasos.codec.MessageType
@@ -38,9 +43,6 @@ import pe.upt.mallasos.ui.components.SosBadge
 import pe.upt.mallasos.ui.components.StatusChip
 import pe.upt.mallasos.ui.theme.TechnicalText
 import pe.upt.mallasos.ui.theme.malla
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 private val clockFormat = DateTimeFormatter.ofPattern("HH:mm:ss")
 private val dateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
@@ -66,6 +68,7 @@ fun SosDetailScreen(
     canAttend: Boolean,
     onAttended: (uid: String, attended: Boolean) -> Unit,
     onBack: () -> Unit,
+    onSendLora: ((MessageEntity) -> Unit)? = null,
 ) {
     Column(
         Modifier
@@ -100,6 +103,12 @@ fun SosDetailScreen(
                     onClick = { onAttended(message.uid, !message.attended) },
                     icon = R.drawable.ic_task_alt,
                 )
+            }
+            if (onSendLora != null && message.type == MessageType.SOS.code) {
+                OutlinedButton(
+                    onClick = { onSendLora(message) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("Reenviar por LoRa al puesto") }
             }
             Text(
                 "${message.uid.take(8)}·${message.uid.drop(8)}",
@@ -154,7 +163,7 @@ private fun Data(message: MessageEntity, aliasOf: (Int) -> String) {
             DataRow("Origen", aliasOf(message.originId))
             DataRow(
                 "Destino",
-                if (message.destId == ANY_POST) "Cualquier puesto" else aliasOf(message.destId),
+                if (message.destId == ANY_POST) "Cualquier rescatista" else aliasOf(message.destId),
             )
             DataRow("Creado", message.createdAt.formatted(dateFormat))
             DataRow("Tiempo de vida", ttlLeft(message))

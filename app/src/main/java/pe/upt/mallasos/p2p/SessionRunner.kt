@@ -1,10 +1,15 @@
 package pe.upt.mallasos.p2p
 
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import pe.upt.mallasos.codec.ANY_POST
@@ -15,10 +20,6 @@ import pe.upt.mallasos.codec.MessageType
 import pe.upt.mallasos.codec.PayloadCodec
 import pe.upt.mallasos.codec.Priority
 import pe.upt.mallasos.data.datastore.NodeMode
-import java.io.IOException
-import java.net.InetSocketAddress
-import java.net.ServerSocket
-import java.net.Socket
 
 const val SESSION_PORT = 8988
 
@@ -63,6 +64,50 @@ class SessionRunner(
             val socket = server.use { it.accept() }
             run(socket, local, onSession)
         }
+
+    /**
+     * Servidor del Rescatista: acepta conexiones sin límite de tiempo y abre una sesión en paralelo
+     * por cada teléfono. Un fallo de una sesión se entrega a [onError] y no afecta a las demás. Solo
+     * termina al cancelarse o si el puerto no se puede abrir (`IOException`).
+     */
+    suspend fun serveMany(
+        local: LocalNode,
+        onError: suspend (Throwable) -> Unit,
+        onSession: suspend (PeerSession) -> Unit,
+    ): Nothing = withContext(Dispatchers.IO) {
+        ServerSocket().use { server ->
+            server.reuseAddress = true
+            server.bind(InetSocketAddress(port))
+            coroutineScope {
+                // `accept` bloqueado ignora la cancelación: cerrar el servidor lo libera.
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        server.close()
+                    }
+                }
+                while (isActive) {
+                    val socket = try {
+                        server.accept()
+                    } catch (error: IOException) {
+                        if (!isActive) awaitCancellation()
+                        throw error
+                    }
+                    launch {
+                        try {
+                            run(socket, local, onSession)
+                        } catch (error: IOException) {
+                            onError(error)
+                        } catch (error: MalformedMessageException) {
+                            onError(error)
+                        }
+                    }
+                }
+                awaitCancellation()
+            }
+        }
+    }
 
     /** El servidor del Group Owner puede tardar en abrir: se reintenta unas cuantas veces. */
     suspend fun <T> connect(

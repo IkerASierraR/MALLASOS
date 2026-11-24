@@ -22,19 +22,25 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import pe.upt.mallasos.AppContainer
+import pe.upt.mallasos.codec.PayloadCodec
 import pe.upt.mallasos.data.datastore.Identity
 import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.TestConfig
 import pe.upt.mallasos.data.datastore.formatNodeId
+import pe.upt.mallasos.data.datastore.goIntentFor
+import pe.upt.mallasos.data.datastore.withGoIntent
 import pe.upt.mallasos.domain.isTestModeActive
 import pe.upt.mallasos.domain.latestLinkTimings
 import pe.upt.mallasos.domain.postPanelItems
 import pe.upt.mallasos.domain.timelineEntries
 import pe.upt.mallasos.dtn.QueuePolicy
 import pe.upt.mallasos.log.CsvExport
+import pe.upt.mallasos.lora.LoraReportType
+import pe.upt.mallasos.lora.LoraSendStatus
 import pe.upt.mallasos.service.MallaService
 import pe.upt.mallasos.ui.screens.CreateSosScreen
 import pe.upt.mallasos.ui.screens.HomeScreen
+import pe.upt.mallasos.ui.screens.LoraScreen
 import pe.upt.mallasos.ui.screens.NeighborsScreen
 import pe.upt.mallasos.ui.screens.NetworkStatus
 import pe.upt.mallasos.ui.screens.PostPanelScreen
@@ -54,6 +60,7 @@ private object Routes {
     const val SOS_DETAIL = "sos/{uid}"
     const val NEIGHBORS = "neighbors"
     const val SETTINGS = "settings/test"
+    const val LORA = "lora"
 
     fun sosDetail(uid: String) = "sos/$uid"
 }
@@ -89,6 +96,9 @@ private fun MallaNavHost(container: AppContainer, identity: Identity) {
         .collectAsState(initial = emptyList())
     val serviceRunning by container.serviceRunning.collectAsState()
     val p2p by container.wifiDirect.state.collectAsState()
+    val loraState by container.lora.link.state.collectAsState()
+    val loraOutbox by container.lora.outbox.collectAsState()
+    val hosting by container.peerContact.activeSessions.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val aliases = remember(knownNodes, identity) {
@@ -125,6 +135,9 @@ private fun MallaNavHost(container: AppContainer, identity: Identity) {
                 onMessages = { nav.navigate(Routes.QUEUE) },
                 onNeighbors = { nav.navigate(Routes.NEIGHBORS) },
                 onPost = { nav.navigate(Routes.POST) },
+                onLora = { nav.navigate(Routes.LORA) },
+                loraStatus = loraOutbox.count { it.status != LoraSendStatus.ENVIADO }
+                    .let { waiting -> if (waiting == 0) loraState.label else "${loraState.label} · $waiting en espera" },
                 onSecretSettings = { nav.navigate(Routes.SETTINGS) },
                 testMode = isTestModeActive(config),
                 panelPending = postPanelItems(messages).count { !it.attended },
@@ -180,9 +193,36 @@ private fun MallaNavHost(container: AppContainer, identity: Identity) {
                 message = message,
                 timeline = timelineEntries(events, aliasOf),
                 aliasOf = aliasOf,
-                canAttend = identity.mode == NodeMode.PUESTO &&
+                canAttend = identity.mode == NodeMode.RESCATISTA &&
                     message?.let { postPanelItems(listOf(it)).isNotEmpty() } == true,
                 onAttended = setAttended,
+                onBack = nav::popBackStack,
+                onSendLora = if (identity.mode == NodeMode.RESCATISTA) {
+                    { sos ->
+                        scope.launch {
+                            val payload = PayloadCodec.decodeSos(sos.payload)
+                            container.lora.submit(
+                                LoraReportType.SOS,
+                                payload.people,
+                                listOf(payload.emergency.label, payload.locationText)
+                                    .filter { it.isNotBlank() }.joinToString(" · "),
+                                sosUid = sos.uid,
+                            )
+                            nav.navigate(Routes.LORA)
+                        }
+                    }
+                } else {
+                    null
+                },
+            )
+        }
+        composable(Routes.LORA) {
+            LoraScreen(
+                linkState = loraState,
+                outbox = loraOutbox,
+                onConnect = { scope.launch { container.lora.link.connect() } },
+                onDisconnect = { scope.launch { container.lora.link.disconnect() } },
+                onSend = { type, people, text -> container.lora.submit(type, people, text) },
                 onBack = nav::popBackStack,
             )
         }
@@ -195,7 +235,14 @@ private fun MallaNavHost(container: AppContainer, identity: Identity) {
                 locationEnabled = LocationManagerCompat.isLocationEnabled(
                     context.getSystemService(LocationManager::class.java),
                 ),
-                goIntent = config.goIntent,
+                mode = identity.mode,
+                goIntent = config.goIntentFor(identity.mode),
+                onGoIntent = { value ->
+                    scope.launch {
+                        container.settings.updateTestConfig { it.withGoIntent(identity.mode, value) }
+                    }
+                },
+                connectedNow = hosting,
                 timings = latestLinkTimings(linkEvents),
                 knownNodes = knownNodes,
                 onSearch = container.wifiDirect::searchNow,

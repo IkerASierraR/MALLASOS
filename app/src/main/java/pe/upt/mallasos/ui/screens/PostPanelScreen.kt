@@ -66,7 +66,7 @@ fun PostPanelScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
     ) {
-        MallaTopBar("Panel del Puesto", onBack)
+        MallaTopBar("Panel del Rescatista", onBack)
         NewSosAlert(items.size)
         Text(
             "${items.size} SOS · $pending sin atender",

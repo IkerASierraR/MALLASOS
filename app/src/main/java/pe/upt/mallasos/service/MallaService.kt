@@ -49,6 +49,7 @@ class MallaService : Service() {
         contacts.invokeOnCompletion { container.wifiDirect.stop() }
         scope.launch { container.sweeper.run() }
         scope.launch { container.traffic.run() }
+        scope.launch { container.lora.run() }
         scope.launch {
             container.database.messages().observeQueued().distinctUntilChanged().collect { queued ->
                 getSystemService(NotificationManager::class.java)

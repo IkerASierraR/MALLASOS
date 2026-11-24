@@ -61,6 +61,8 @@ fun HomeScreen(
     onMessages: () -> Unit,
     onNeighbors: () -> Unit,
     onPost: () -> Unit,
+    onLora: () -> Unit,
+    loraStatus: String,
     onSecretSettings: () -> Unit,
     testMode: Boolean,
     panelPending: Int,
@@ -125,12 +127,18 @@ fun HomeScreen(
             subtitle = if (network.active) "${network.neighbors} cerca ahora" else "Sin búsqueda activa",
             onClick = onNeighbors,
         )
-        if (identity.mode == NodeMode.PUESTO) {
+        if (identity.mode == NodeMode.RESCATISTA) {
             ShortcutTile(
                 icon = R.drawable.ic_apartment,
-                title = "Panel del Puesto",
+                title = "Panel del Rescatista",
                 subtitle = if (panelPending == 0) "Sin SOS por atender" else "$panelPending sin atender",
                 onClick = onPost,
+            )
+            ShortcutTile(
+                icon = R.drawable.ic_cell_tower,
+                title = "Conexión LoRa",
+                subtitle = loraStatus,
+                onClick = onLora,
             )
         }
         Spacer(Modifier.weight(1f))
@@ -142,7 +150,7 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            "MALLA-SOS v1.0 · ID ${formatNodeId(identity.nodeId)}",
+            "MALLA-SOS v1.1 · ID ${formatNodeId(identity.nodeId)}",
             style = TechnicalText,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
