@@ -2,6 +2,7 @@ package pe.upt.mallasos.log
 
 import kotlinx.coroutines.flow.first
 import pe.upt.mallasos.data.datastore.SettingsStore
+import pe.upt.mallasos.data.datastore.goIntentFor
 import pe.upt.mallasos.data.db.EventDao
 import pe.upt.mallasos.data.db.EventEntity
 
@@ -64,7 +65,7 @@ class EventLogger(
                 hopsLeft = hopsLeft,
                 dtnMode = config.dtnMode.name,
                 queueMode = config.queueMode.name,
-                goIntent = config.goIntent,
+                goIntent = config.goIntentFor(identity.mode).toString(),
                 extra = extra,
             ),
         )

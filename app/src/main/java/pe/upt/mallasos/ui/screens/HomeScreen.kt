@@ -23,16 +23,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import pe.upt.mallasos.R
 import pe.upt.mallasos.data.datastore.Identity
 import pe.upt.mallasos.data.datastore.NodeMode
@@ -58,12 +61,20 @@ fun HomeScreen(
     onMessages: () -> Unit,
     onNeighbors: () -> Unit,
     onPost: () -> Unit,
+    onLora: () -> Unit,
+    loraStatus: String,
     onSecretSettings: () -> Unit,
     testMode: Boolean,
     panelPending: Int,
     onReactivate: () -> Unit,
 ) {
     var taps by rememberSaveable { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    var permissions by remember { mutableStateOf(hasNetworkPermissions(context)) }
+    LifecycleResumeEffect(Unit) {
+        permissions = hasNetworkPermissions(context)
+        onPauseOrDispose { }
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -87,7 +98,7 @@ fun HomeScreen(
                 MaterialTheme.colorScheme.primaryContainer,
             )
         }
-        ServiceBanner(network, queued, onReactivate)
+        ServiceBanner(network, permissions, queued, onReactivate) { openAppSettings(context) }
         if (testMode) {
             Pill("Modo pruebas activo", R.drawable.ic_tune, malla.neutral, malla.neutralContainer)
         }
@@ -116,12 +127,18 @@ fun HomeScreen(
             subtitle = if (network.active) "${network.neighbors} cerca ahora" else "Sin búsqueda activa",
             onClick = onNeighbors,
         )
-        if (identity.mode == NodeMode.PUESTO) {
+        if (identity.mode == NodeMode.RESCATISTA) {
             ShortcutTile(
                 icon = R.drawable.ic_apartment,
-                title = "Panel del Puesto",
+                title = "Panel del Rescatista",
                 subtitle = if (panelPending == 0) "Sin SOS por atender" else "$panelPending sin atender",
                 onClick = onPost,
+            )
+            ShortcutTile(
+                icon = R.drawable.ic_cell_tower,
+                title = "Conexión LoRa",
+                subtitle = loraStatus,
+                onClick = onLora,
             )
         }
         Spacer(Modifier.weight(1f))
@@ -133,7 +150,7 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            "MALLA-SOS v1.0 · ID ${formatNodeId(identity.nodeId)}",
+            "MALLA-SOS v1.1 · ID ${formatNodeId(identity.nodeId)}",
             style = TechnicalText,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -165,16 +182,24 @@ data class NetworkStatus(
 }
 
 @Composable
-private fun ServiceBanner(network: NetworkStatus, queued: Int, onReactivate: () -> Unit) {
+private fun ServiceBanner(
+    network: NetworkStatus,
+    permissions: Boolean,
+    queued: Int,
+    onReactivate: () -> Unit,
+    onPermissions: () -> Unit,
+) {
     val neighbors = if (network.neighbors == 1) "1 vecino" else "${network.neighbors} vecinos"
     val text = when {
+        !permissions -> "Faltan permisos · $queued en cola"
         !network.serviceRunning -> "Red detenida · $queued en cola"
         !network.supported -> "Este teléfono no tiene Wi-Fi Direct · $queued en cola"
         !network.enabled -> "Wi-Fi apagado · $queued en cola"
         else -> "Red activa · $neighbors · $queued en cola"
     }
-    val content = if (network.active) malla.carried else malla.warning
-    val container = if (network.active) malla.carriedContainer else malla.warningContainer
+    val healthy = network.active && permissions
+    val content = if (healthy) malla.carried else malla.warning
+    val container = if (healthy) malla.carriedContainer else malla.warningContainer
     Row(
         Modifier
             .fillMaxWidth()
@@ -186,7 +211,7 @@ private fun ServiceBanner(network: NetworkStatus, queued: Int, onReactivate: () 
     ) {
         Icon(
             painterResource(
-                if (network.active) R.drawable.ic_wifi_tethering else R.drawable.ic_wifi_off,
+                if (healthy) R.drawable.ic_wifi_tethering else R.drawable.ic_wifi_off,
             ),
             null,
             tint = content,
@@ -197,7 +222,11 @@ private fun ServiceBanner(network: NetworkStatus, queued: Int, onReactivate: () 
             color = content,
             modifier = Modifier.weight(1f),
         )
-        if (!network.serviceRunning) {
+        if (!permissions) {
+            TextButton(onClick = onPermissions) {
+                Text("Resolver", color = content)
+            }
+        } else if (!network.serviceRunning) {
             TextButton(onClick = onReactivate) {
                 Text("Reactivar", color = content)
             }

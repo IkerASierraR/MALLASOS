@@ -189,7 +189,7 @@ private fun MessageCard(message: MessageEntity, isNext: Boolean, onClick: () -> 
                         modifier = Modifier.weight(1f),
                     )
                 }
-                StatusChip(message.state.chip)
+                StatusChip(if (message.attended) ChipStatus.Attended else message.state.chip)
             }
             if (sos != null) {
                 Row(

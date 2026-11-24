@@ -153,7 +153,7 @@ Material Symbols (empaquetados):
     - ubicación en texto;
     - coordenadas si hay GPS;
     - alias de origen;
-    - saltos recorridos;
+    - saltos restantes (el teléfono no conoce los saltos iniciales del origen);
     - "Recibido hace X".
   - **Etiqueta fija en cada tarjeta:** "Confirmado ✓" (ACK automático).
 - **Acción principal:** "Marcar atendido" en cada tarjeta. Cambia la tarjeta a `StatusChip` "Atendido" y se puede deshacer.
@@ -235,7 +235,7 @@ Bienvenida ─► Inicio ─┬─► Crear SOS ─► Confirmación ─► Mis 
 
 **Prefijo común** (pegar antes de cada pantalla):
 
-> Mobile Android app, Material 3, Spanish UI, offline emergency messaging app "MALLA-SOS". Light theme. Primary color #1F4E79. Red #C62828 is ONLY for SOS elements, never for errors. Status always shown with icon + text + color (Pendiente amber #8A5300 schedule icon, En tránsito blue #3D5A80, Entregado green #2E7D32 check icon, Vencido gray). Large touch targets, high contrast, Roboto, no maps, no photos.
+> Mobile Android app, Material 3, Spanish UI, offline emergency messaging app "MALLA-SOS". Light theme. Primary color #1F4E79. Red #C62828 is ONLY for SOS elements, never for errors. Status always shown with icon + text + color (Pendiente amber #8A5300 schedule icon, En tránsito blue #3D5A80, Entregado green #2E7D32 check icon, Vencido gray). Large touch targets, high contrast, Jost font, no maps, no photos.
 
 **Prompts por pantalla:**
 

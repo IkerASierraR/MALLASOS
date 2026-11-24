@@ -6,7 +6,7 @@ const val PROTOCOL_VERSION = 1
 const val HEADER_SIZE = 19
 const val MAX_PAYLOAD_SIZE = 255
 
-/** Destino "cualquier puesto" (`FFFFFFFF`). */
+/** Destino "cualquier rescatista" (`FFFFFFFF`). */
 const val ANY_POST: Int = -1
 
 enum class MessageType(val code: Int) {

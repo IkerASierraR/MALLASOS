@@ -59,7 +59,6 @@ fun PostPanelScreen(
 ) {
     val items = postPanelItems(messages)
     val pending = items.count { !it.attended }
-    NewSosAlert(items.size)
 
     Column(
         Modifier
@@ -67,7 +66,8 @@ fun PostPanelScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
     ) {
-        MallaTopBar("Panel del Puesto", onBack)
+        MallaTopBar("Panel del Rescatista", onBack)
+        NewSosAlert(items.size)
         Text(
             "${items.size} SOS · $pending sin atender",
             style = MaterialTheme.typography.titleMedium,
@@ -117,7 +117,6 @@ private fun NewSosAlert(count: Int) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .background(malla.sosContainer)
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -142,7 +141,11 @@ private fun PostCard(
     onAttended: (uid: String, attended: Boolean) -> Unit,
 ) {
     val sos = PayloadCodec.decodeSos(message.payload)
-    MallaCard(Modifier.fillMaxWidth(), onClick = { onOpen(message.uid) }) {
+    MallaCard(
+        Modifier.fillMaxWidth(),
+        onClick = { onOpen(message.uid) },
+        border = if (message.attended) malla.cardBorder else MaterialTheme.colorScheme.primary,
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

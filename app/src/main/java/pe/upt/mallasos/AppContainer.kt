@@ -6,6 +6,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.SettingsStore
 import pe.upt.mallasos.data.db.MallaDatabase
 import pe.upt.mallasos.domain.SosRepository
@@ -13,6 +15,8 @@ import pe.upt.mallasos.dtn.MessageExchange
 import pe.upt.mallasos.dtn.TtlSweeper
 import pe.upt.mallasos.log.CsvExporter
 import pe.upt.mallasos.log.EventLogger
+import pe.upt.mallasos.lora.LoraGateway
+import pe.upt.mallasos.lora.PendingBoardLink
 import pe.upt.mallasos.p2p.ContactScheduler
 import pe.upt.mallasos.p2p.PeerContact
 import pe.upt.mallasos.p2p.SessionRunner
@@ -29,16 +33,22 @@ class AppContainer(context: Context) {
     val sosRepository = SosRepository(database.messages(), settings, logger)
 
     val wifiDirect = WifiDirectManager(context, scope, logger, settings)
+    val peerContact = PeerContact(
+        SessionRunner(),
+        settings,
+        database.knownNodes(),
+        MessageExchange(database.messages(), logger, settings::takeSequence),
+        logger,
+    )
     val contacts = ContactScheduler(
         wifiDirect,
-        PeerContact(
-            SessionRunner(),
-            settings,
-            database.knownNodes(),
-            MessageExchange(database.messages(), logger, settings::takeSequence),
-            logger,
-        ),
+        peerContact,
+        hostMode = settings.identity.map { it?.mode == NodeMode.RESCATISTA },
+        host = peerContact,
     )
+
+    /** Salida LoRa del Rescatista; usa [PendingBoardLink] hasta que exista la placa. */
+    val lora = LoraGateway(PendingBoardLink())
 
     val csvExporter = CsvExporter(context, database.events())
     val traffic = TrafficGenerator(settings.testConfig, sosRepository::createNormal)

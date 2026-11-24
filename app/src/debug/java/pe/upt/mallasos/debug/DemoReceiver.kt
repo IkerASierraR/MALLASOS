@@ -64,7 +64,7 @@ class DemoReceiver : BroadcastReceiver() {
         val exchangeConfig = ExchangeConfig(
             local, DtnMode.PROPUESTO, QueueMode.PRIORIDAD, config.ttlHours, config.hops,
         )
-        val neighbor = LocalNode(0x0B0B0B0B, "Vecino demo", NodeMode.NORMAL)
+        val neighbor = LocalNode(0x0B0B0B0B, "Vecino demo", NodeMode.AYUDANTE)
         val seq = (System.currentTimeMillis() / 1000 and 0xFFFF).toInt()
         val payload = PayloadCodec.encodeSos(
             SosPayload(EmergencyType.ATRAPADO, 3, 62, null, "Pabellón B, piso 2", "Escalera bloqueada"),

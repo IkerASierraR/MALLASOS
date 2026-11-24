@@ -1,7 +1,11 @@
 package pe.upt.mallasos.p2p
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -12,6 +16,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CopyOnWriteArrayList
 import pe.upt.mallasos.codec.ANY_POST
 import pe.upt.mallasos.codec.Header
 import pe.upt.mallasos.codec.HelloPayload
@@ -31,8 +36,8 @@ import java.net.SocketTimeoutException
 
 class SessionRunnerTest {
 
-    private val puesto = LocalNode(0x0D0D0D0D, "Puesto", NodeMode.PUESTO)
-    private val persona = LocalNode(0x0A0A0A0A, "Núñez", NodeMode.NORMAL)
+    private val puesto = LocalNode(0x0D0D0D0D, "Puesto", NodeMode.RESCATISTA)
+    private val persona = LocalNode(0x0A0A0A0A, "Núñez", NodeMode.AYUDANTE)
 
     private fun freePort() = ServerSocket(0).use { it.localPort }
 
@@ -91,11 +96,11 @@ class SessionRunnerTest {
         val client = runner(port).connect("127.0.0.1", persona) { it.remote }
 
         assertEquals(
-            RemoteNode(persona.nodeId, "Núñez", NodeMode.NORMAL, 1_794_000_000_000L),
+            RemoteNode(persona.nodeId, "Núñez", NodeMode.AYUDANTE, 1_794_000_000_000L),
             server.await(),
         )
         assertEquals(
-            RemoteNode(puesto.nodeId, "Puesto", NodeMode.PUESTO, 1_794_000_000_000L),
+            RemoteNode(puesto.nodeId, "Puesto", NodeMode.RESCATISTA, 1_794_000_000_000L),
             client,
         )
     }
@@ -222,5 +227,44 @@ class SessionRunnerTest {
             ByteArrayOutputStream(),
         )
         assertThrows(EOFException::class.java) { frames.read() }
+    }
+
+    @Test
+    fun `el rescatista atiende a varios telefonos a la vez`() = runBlocking {
+        val port = freePort()
+        val seen = CopyOnWriteArrayList<Int>()
+        val bothInside = CompletableDeferred<Unit>()
+        val server = launch(Dispatchers.IO) {
+            runner(port).serveMany(puesto, onError = { }) { session ->
+                seen += session.remote.nodeId
+                if (seen.size == 2) bothInside.complete(Unit)
+                // Ninguna sesión termina hasta que las dos están abiertas: prueba el paralelismo.
+                bothInside.await()
+            }
+        }
+        val clients = listOf(0x0A0A0A0A, 0x0B0B0B0B).map { id ->
+            async(Dispatchers.IO) {
+                runner(port).connect("127.0.0.1", LocalNode(id, "C$id", NodeMode.AYUDANTE)) {
+                    it.remote.nodeId
+                }
+            }
+        }
+        assertEquals(listOf(puesto.nodeId, puesto.nodeId), clients.awaitAll())
+        assertEquals(setOf(0x0A0A0A0A, 0x0B0B0B0B), seen.toSet())
+        server.cancelAndJoin()
+    }
+
+    @Test
+    fun `un HELLO invalido no tumba el servidor del rescatista`() = runBlocking {
+        val port = freePort()
+        val errors = CopyOnWriteArrayList<Throwable>()
+        val server = launch(Dispatchers.IO) {
+            runner(port).serveMany(puesto, onError = { errors += it }) { }
+        }
+        rawClient(port, helloFrame(origin = ANY_POST)).join()
+        val id = runner(port).connect("127.0.0.1", persona) { it.remote.nodeId }
+        assertEquals(puesto.nodeId, id)
+        assertTrue(errors.single() is MalformedMessageException)
+        server.cancelAndJoin()
     }
 }

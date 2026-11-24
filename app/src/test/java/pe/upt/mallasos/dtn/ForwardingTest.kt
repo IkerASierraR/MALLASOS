@@ -7,6 +7,7 @@ import org.junit.Test
 import pe.upt.mallasos.codec.ANY_POST
 import pe.upt.mallasos.codec.MessageType
 import pe.upt.mallasos.codec.Priority
+import pe.upt.mallasos.data.datastore.DtnMode
 import pe.upt.mallasos.data.datastore.NodeMode
 import pe.upt.mallasos.data.datastore.QueueMode
 import pe.upt.mallasos.data.db.MessageEntity
@@ -17,8 +18,8 @@ class ForwardingTest {
 
     private val now = 10_000_000L
     private val hour = 3_600_000L
-    private val voluntario = RemoteNode(0x0B, "Beto", NodeMode.NORMAL, 0)
-    private val puesto = RemoteNode(0x0D, "Puesto", NodeMode.PUESTO, 0)
+    private val voluntario = RemoteNode(0x0B, "Beto", NodeMode.AYUDANTE, 0)
+    private val puesto = RemoteNode(0x0D, "Puesto", NodeMode.RESCATISTA, 0)
 
     private fun message(
         uid: String = "m",
@@ -99,6 +100,29 @@ class ForwardingTest {
         assertEquals(
             listOf("normal", "sos"),
             Forwarding.outgoing(queued, voluntario, QueueMode.FIFO, now).map { it.uid },
+        )
+    }
+
+    @Test
+    fun `el modo basico no repite lo ya enviado salvo el ACK final`() {
+        val sent = MessageEntity(
+            "enviado", MessageType.SOS.code, Priority.SOS, 0x0A, ANY_POST, 1, now, 24, 5,
+            ByteArray(0), MessageState.CARRIED, true, 0, attempts = 1,
+        )
+        val ack = MessageEntity(
+            "ack", MessageType.ACK_FINAL.code, Priority.CONTROL, 0x0A, 0x0C, 2, now, 24, 5,
+            ByteArray(0), MessageState.PENDING, true, 0, attempts = 1,
+        )
+        val queued = listOf(sent, ack, message("nuevo"))
+        assertEquals(
+            listOf("ack", "nuevo"),
+            Forwarding.outgoing(queued, voluntario, QueueMode.PRIORIDAD, now, DtnMode.BASICO)
+                .map { it.uid },
+        )
+        assertEquals(
+            listOf("ack", "enviado", "nuevo"),
+            Forwarding.outgoing(queued, voluntario, QueueMode.PRIORIDAD, now, DtnMode.PROPUESTO)
+                .map { it.uid },
         )
     }
 

@@ -7,7 +7,7 @@ import pe.upt.mallasos.data.db.MessageEntity
 import pe.upt.mallasos.data.db.MessageState
 import pe.upt.mallasos.log.Events
 
-/** SOS recibidos por este Puesto: primero sin atender y, dentro de cada grupo, el más antiguo. */
+/** SOS recibidos por este Rescatista: primero sin atender y, dentro de cada grupo, el más antiguo. */
 fun postPanelItems(messages: List<MessageEntity>): List<MessageEntity> = messages
     .filter {
         it.type == MessageType.SOS.code && it.state == MessageState.DELIVERED && !it.isOwn
@@ -27,7 +27,7 @@ fun timelineEntries(events: List<EventEntity>, aliasOf: (Int) -> String): List<T
             Events.ACK_HOP_RX -> "Entregado a $peer (ACK salto)"
             Events.RECEIVED -> "Recibido de $peer"
             Events.DUPLICATE_DROPPED -> "Copia repetida de $peer descartada"
-            Events.DELIVERED_FINAL -> "Entregado en este puesto"
+            Events.DELIVERED_FINAL -> "Entregado a este rescatista"
             Events.ACK_FINAL_RX -> "Confirmado por el destino (ACK final vía $peer)"
             Events.PURGED -> "Copia local borrada"
             Events.EXPIRED -> "Vencido"
@@ -58,7 +58,12 @@ fun latestLinkTimings(events: List<EventEntity>): LinkTimings? {
 
 /** La franja "Modo pruebas activo" no depende de la etiqueta de corrida, que es solo un nombre. */
 fun isTestModeActive(config: TestConfig): Boolean =
-    config.copy(runLabel = "") != TestConfig()
+    // El intent de Group Owner es un ajuste del rol, no de las pruebas.
+    config.copy(
+        runLabel = "",
+        goIntentAyudante = TestConfig().goIntentAyudante,
+        goIntentHerido = TestConfig().goIntentHerido,
+    ) != TestConfig()
 
 const val SECRET_TAPS = 7
 

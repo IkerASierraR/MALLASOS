@@ -51,7 +51,6 @@ import pe.upt.mallasos.ui.components.SectionTitle
 import pe.upt.mallasos.ui.components.SegmentedToggle
 import pe.upt.mallasos.ui.theme.TechnicalText
 
-private val GO_INTENTS = listOf("0", "7", "15", "AUTO")
 
 @Composable
 fun TestSettingsScreen(
@@ -112,6 +111,16 @@ fun TestSettingsScreen(
                         },
                     )
                 }
+                Block("Corte de enlace (E2)") {
+                    NumberField("Cortar tras N bytes (0 = apagado)", config.cutAfterBytes, 0..9_999) {
+                        value -> onChange { it.copy(cutAfterBytes = value) }
+                    }
+                    Text(
+                        "Se aplica a un solo contacto y vuelve a 0.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Block("Cola") {
                     SegmentedToggle(
                         options = listOf("Prioridad estricta", "Orden de llegada"),
@@ -120,15 +129,6 @@ fun TestSettingsScreen(
                             val mode = QueueMode.entries[index]
                             val name = if (mode == QueueMode.FIFO) "orden de llegada" else "prioridad"
                             apply("cola por $name") { it.copy(queueMode = mode) }
-                        },
-                    )
-                }
-                Block("Intent de Group Owner") {
-                    SegmentedToggle(
-                        options = listOf("0", "7", "15", "Auto"),
-                        selected = GO_INTENTS.indexOf(config.goIntent).coerceAtLeast(3),
-                        onSelect = { index ->
-                            apply("intent ${GO_INTENTS[index]}") { it.copy(goIntent = GO_INTENTS[index]) }
                         },
                     )
                 }
@@ -171,7 +171,7 @@ fun TestSettingsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Text("$eventCount eventos", style = TechnicalText)
+                    Text(if (eventCount == 1) "1 evento" else "$eventCount eventos", style = TechnicalText)
                     PrimaryButton(
                         "Exportar CSV",
                         onClick = { scope.launch { announce(onExport()) } },
@@ -228,10 +228,12 @@ fun TestSettingsScreen(
     askMode?.let { mode ->
         Confirm(
             title = "¿Cambiar a modo ${mode.label}?",
-            text = if (mode == NodeMode.PUESTO) {
-                "Este teléfono confirmará los SOS dirigidos a cualquier puesto."
+            text = if (mode == NodeMode.RESCATISTA) {
+                "Este teléfono creará su propio grupo, confirmará los SOS dirigidos a cualquier " +
+                    "rescatista y podrá enviarlos por LoRa."
             } else {
-                "Este teléfono dejará de confirmar los SOS dirigidos a cualquier puesto."
+                "${modeDescription(mode)} Dejará de confirmar los SOS dirigidos a cualquier " +
+                    "rescatista."
             },
             confirm = "Cambiar",
             onConfirm = {

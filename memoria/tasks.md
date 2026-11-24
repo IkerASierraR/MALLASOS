@@ -62,6 +62,19 @@
 | T2.15 | Resolver D1 (corte repetible para E2) y, si se elige, implementar "cortar tras N bytes" | C | P1 | T2.2 |
 | T2.16 | **Hito M2:** recorrido A→B→D completo; ACK final que purga las copias; CSV correcto | T | P0 | T2.5, T2.8, T2.14 |
 
+## Fase 2b: nuevo concepto, roles y pasarela LoRa (24 nov – 6 dic)
+
+| ID | Tarea | Resp. | Prio. | Depende de |
+| --- | --- | --- | --- | --- |
+| T5.1 | Tres roles (Herido, Ayudante, Rescatista) y "Puesto" pasa a "Rescatista" | I | P0 | — |
+| T5.2 | Intent de Group Owner por rol, ajustable en Vecinos | I | P0 | T5.1 |
+| T5.3 | El Rescatista crea su grupo y atiende a varios teléfonos a la vez | I | P0 | T5.1 |
+| T5.4 | Pantalla "Conexión LoRa": reportes al puesto y reenvío de SOS, en espera sin placa | I | P0 | T5.1 |
+| T5.5 | Acordar con la placa el servicio Bluetooth LE y el formato de cada tipo de dato LoRa | T | P0 | — |
+| T5.6 | Implementar `LoraLink` real por Bluetooth LE y guardar la cola LoRa en Room | I | P0 | T5.4, T5.5 |
+| T5.7 | Receptor del puesto: placa LoRa por serial a una computadora y programa que muestre los mensajes | T | P0 | T5.5 |
+| T5.8 | Probar en teléfonos: un Rescatista con dos o más clientes a la vez y red fija en Android 10+ y 8–9 | T | P0 | T5.3 |
+
 ## Fase 3: ensayos (16 nov – 13 dic)
 
 | ID | Tarea | Resp. | Prio. | Fechas |
